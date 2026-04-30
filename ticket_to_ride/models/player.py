@@ -14,6 +14,7 @@ class Player:
         self.destination_tickets = []
 
     def matching_cards(self, route_colour):
+        # cards that can be used on this route
         matching = []
 
         for card in self.train_cards:

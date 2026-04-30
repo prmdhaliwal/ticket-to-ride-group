@@ -8,6 +8,7 @@ class City:
 
 class Route:
     def __init__(self, city_a, city_b, colour, length):
+        # route connects two cities and starts unclaimed
         self.cities = [city_a, city_b]
         self.city_a = city_a
         self.city_b = city_b

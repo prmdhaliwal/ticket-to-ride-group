@@ -9,6 +9,7 @@ class TrainCarCard:
         if self.colour == route_colour:
             return True
 
+        # locomotive cards can be used as any colour
         if self.colour == "locomotive":
             return True
 
