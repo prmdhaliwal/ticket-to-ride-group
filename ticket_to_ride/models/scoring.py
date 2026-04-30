@@ -28,3 +28,24 @@ class StandardScoring:
 
         return scores
 
+    def winners(self, players, board):
+        # start by finding players with the highest score
+        scores = self.final_scores(players, board)
+        winners = []
+        best_score = None
+
+        for player in players:
+            player_score = scores[player]
+
+            if best_score is None or player_score > best_score:
+                best_score = player_score
+                winners = []
+                winners.append(player)
+            elif player_score == best_score:
+                winners.append(player)
+
+        winners = self.tie_by_completed_tickets(winners, board)
+        winners = self.tie_by_longest_path(winners, board)
+        return winners
+
+   
