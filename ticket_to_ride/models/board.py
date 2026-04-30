@@ -27,3 +27,12 @@ class BoardMap:
             self.routes = []
         else:
             self.routes = routes
+
+    def claimed_routes(self, player):
+        claimed = []
+
+        for route in self.routes:
+            if route.owner == player:
+                claimed.append(route)
+
+        return claimed
