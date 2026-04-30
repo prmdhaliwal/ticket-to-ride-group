@@ -48,4 +48,36 @@ class StandardScoring:
         winners = self.tie_by_longest_path(winners, board)
         return winners
 
-   
+    def tie_by_completed_tickets(self, players, board):
+        # first tie breaker is completed tickets
+        tied = []
+        best_count = None
+
+        for player in players:
+            completed = self.completed_ticket_count(player, board)
+
+            if best_count is None or completed > best_count:
+                best_count = completed
+                tied = []
+                tied.append(player)
+            elif completed == best_count:
+                tied.append(player)
+
+        return tied
+
+    def tie_by_longest_path(self, players, board):
+        # second tie breaker is longest path
+        tied = []
+        best_length = None
+
+        for player in players:
+            path_length = self.longest_path_length(player, board)
+
+            if best_length is None or path_length > best_length:
+                best_length = path_length
+                tied = []
+                tied.append(player)
+            elif path_length == best_length:
+                tied.append(player)
+
+        return tied  
