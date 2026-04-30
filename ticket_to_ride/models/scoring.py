@@ -81,3 +81,75 @@ class StandardScoring:
                 tied.append(player)
 
         return tied  
+    
+    def completed_ticket_count(self, player, board):
+        # count tickets where both cities are connected
+        completed = 0
+
+        for ticket in player.destination_tickets:
+            if ticket.is_complete(board, player):
+                completed += 1
+
+        return completed
+
+    def walk_route(self, city, unused_routes, current_length):
+        # helper to keep walking through unused routes from the current city
+        best_length = current_length
+
+        for route in unused_routes:
+            next_city = None
+
+            if route.city_a == city:
+                next_city = route.city_b
+
+            if route.city_b == city:
+                next_city = route.city_a
+
+            if next_city is not None:
+                remaining_routes = unused_routes.copy()
+                remaining_routes.remove(route)
+                path_length = self.walk_route(next_city, remaining_routes, current_length + route.length)
+
+                if path_length > best_length:
+                    best_length = path_length
+
+        return best_length
+
+    def longest_path_players(self, players, board):
+        # players tied for the longest path bonus
+        tied = []
+        best_length = 0
+
+        for player in players:
+            path_length = self.longest_path_length(player, board)
+
+            if path_length > best_length:
+                best_length = path_length
+                tied = []
+                tied.append(player)
+            elif path_length == best_length:
+                tied.append(player)
+
+        return tied
+
+    def longest_path_length(self, player, board):
+        # try each claimed route as the start of a path
+        claimed_routes = board.claimed_routes(player)
+        best_length = 0
+
+        for route in claimed_routes:
+            remaining_routes = claimed_routes.copy()
+            remaining_routes.remove(route)
+
+            length_from_a = self.walk_route(route.city_a, remaining_routes, route.length)
+            length_from_b = self.walk_route(route.city_b, remaining_routes, route.length)
+
+            if length_from_a > best_length:
+                best_length = length_from_a
+
+            if length_from_b > best_length:
+                best_length = length_from_b
+
+        return best_length
+
+    
