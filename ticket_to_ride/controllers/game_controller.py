@@ -22,6 +22,12 @@ class GameController:
 
         return self.turn_manager.board.routes
 
+    def players(self):
+        if self.turn_manager is None:
+            return []
+
+        return self.turn_manager.players
+
     def claim_route(self, route_index):
         # ui sends the selected route
         if self.turn_manager is None:
@@ -68,3 +74,12 @@ class GameController:
         players = self.turn_manager.players
         board = self.turn_manager.board
         return self.scoring.final_scores(players, board)
+
+    def winners(self):
+        # winner text shown by the ui
+        if self.turn_manager is None:
+            return []
+
+        players = self.turn_manager.players
+        board = self.turn_manager.board
+        return self.scoring.winners(players, board)
