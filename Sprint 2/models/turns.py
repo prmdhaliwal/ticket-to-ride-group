@@ -1,9 +1,11 @@
 """Turn flow classes."""
 
-from ticket_to_ride.models.cards import TrainCar
+from models.cards import TrainCar
+from models.core import Subject
 
 
 class EndGameTracker:
+    """Tracks the final round trigger (when a player hits 2 or fewer buses)."""
     def __init__(self):
         self.final_round = False
         self.triggering_player = None
@@ -33,10 +35,15 @@ class EndGameTracker:
         return self.game_finished
 
 
-class TurnManager:
-    def __init__(self, players, board):
+class TurnManager(Subject):
+    """Manages the active player and validates actions."""
+    def __init__(self, players, board, transport_deck, ticket_deck, face_up_pool):
+        super().__init__()
         self.players = players
         self.board = board
+        self.transport_deck = transport_deck
+        self.ticket_deck = ticket_deck
+        self.face_up_pool = face_up_pool
         self.current_player_index = 0
         self.action_taken = False
         self.end_game_tracker = EndGameTracker()
@@ -56,7 +63,8 @@ class TurnManager:
         if route not in self.board.routes:
             return False, "That route is not on the board."
 
-        if not route.is_available():
+        # Pass total players to is_available for double-route logic
+        if not route.is_available(len(self.players)):
             return False, "That route has already been claimed."
 
         if player.trains_left < route.length:
@@ -86,6 +94,7 @@ class TurnManager:
             route.placed_trains.append(train)
 
         self.action_taken = True
+        self.notify()  # Notify observers that the board state changed
         return True, "Route claimed."
 
     def next_turn(self):
@@ -101,6 +110,7 @@ class TurnManager:
             self.end_game_tracker.use_final_turn()
 
         if self.end_game_tracker.game_over():
+            self.notify() # Notify observers of game end
             return "Game over."
 
         self.current_player_index += 1
@@ -109,6 +119,7 @@ class TurnManager:
             self.current_player_index = 0
 
         self.action_taken = False
+        self.notify()  # Notify observers that turn has changed
         return "Next turn."
 
     def is_game_over(self):

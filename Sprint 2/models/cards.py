@@ -1,5 +1,7 @@
 """Transportation card and bus piece classes."""
 
+from models.core import CardColor
+
 
 class TrainCarCard:
     def __init__(self, colour):
@@ -11,7 +13,7 @@ class TrainCarCard:
 
 class ColouredCarCard(TrainCarCard):
     def matches(self, route_colour):
-        if self.colour == route_colour:
+        if self.colour == route_colour or route_colour == CardColor.GRAY:
             return True
 
         return False
@@ -19,8 +21,7 @@ class ColouredCarCard(TrainCarCard):
 
 class LocomotiveCard(TrainCarCard):
     def __init__(self):
-        # wild bus card in the london version
-        super().__init__("locomotive")
+        super().__init__(CardColor.LOCOMOTIVE)
 
     def matches(self, route_colour):
         return True

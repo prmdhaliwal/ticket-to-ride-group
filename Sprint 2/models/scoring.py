@@ -5,7 +5,7 @@ class ScoringStrategy:
     pass
 
 
-class StandardScoring:
+class StandardScoring(ScoringStrategy):
     def final_scores(self, players, board):
         # total score after tickets and longest path bonus
         scores = {}
@@ -151,5 +151,3 @@ class StandardScoring:
                 best_length = length_from_b
 
         return best_length
-
-    
