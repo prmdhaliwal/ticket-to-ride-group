@@ -1,6 +1,6 @@
 """Controller layer for the game."""
 
-from ticket_to_ride.models.scoring import StandardScoring
+from models.scoring import StandardScoring
 
 
 class GameController:
@@ -35,14 +35,8 @@ class GameController:
 
         routes = self.get_routes()
 
-        if route_index is None:
-            return False, "Select a route first."
-
-        if route_index < 0:
-            return False, "Select a route first."
-
-        if route_index >= len(routes):
-            return False, "Select a route first."
+        if route_index is None or route_index < 0 or route_index >= len(routes):
+            return False, "Select a valid route first."
 
         route = routes[route_index]
         return self.turn_manager.claim_route(route)

@@ -1,13 +1,86 @@
 """Game setup classes."""
 
-
-class MapDefinition:
-    pass
-
-
-class MapFactory:
-    pass
+from models.board import BoardMap
+from models.player import Player
+from models.decks import TrainCarCardDeck, DestinationTicketDeck, FaceUpPool
+from models.cards import ColouredCarCard, LocomotiveCard
+from models.tickets import DestinationTicket
+from models.core import CardColor
+from models.turns import TurnManager
 
 
 class GameSetup:
-    pass
+    def set_up_game(self, map_definition, player_names):
+        # 1. Create the Board
+        board = self.create_board(map_definition)
+        
+        # 2. Create the Players
+        players = self.create_players(player_names, map_definition)
+        
+        # 3. Build and Shuffle Decks
+        train_deck = self.create_train_deck()
+        ticket_deck = self.create_ticket_deck(map_definition)
+        
+        # 4. Deal Initial Hands
+        self.deal_starting_cards(players, train_deck)
+        self.deal_starting_tickets(players, ticket_deck)
+        
+        # 5. Flip Initial Face-Up Pool
+        face_up_pool = FaceUpPool()
+        face_up_pool.refresh(train_deck)
+        
+        # 6. Initialize Turn Manager
+        turn_manager = TurnManager(players, board, train_deck, ticket_deck, face_up_pool)
+        
+        # Return all necessary state to the GameController
+        return turn_manager, train_deck, ticket_deck, face_up_pool
+
+    def create_board(self, map_definition):
+        return BoardMap(map_definition)
+
+    def create_players(self, names, map_definition):
+        players = []
+        for name in names:
+            # Initialized with 17 trains for the London Map
+            players.append(Player(name, trains_left=map_definition.initial_train_pieces))
+        return players
+
+    def create_train_deck(self):
+        cards = []
+        # Standard 8 colors
+        colors = [
+            CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW, 
+            CardColor.BLACK, CardColor.WHITE, CardColor.ORANGE, CardColor.PURPLE
+        ]
+        
+        # 12 cards of each color
+        for color in colors:
+            for _ in range(12):
+                cards.append(ColouredCarCard(color))
+                
+        # 14 Multi-colored Locomotive Wildcards
+        for _ in range(14):
+            cards.append(LocomotiveCard())
+            
+        return TrainCarCardDeck(cards)
+
+    def create_ticket_deck(self, map_definition):
+        tickets = []
+        # Populate from London map tickets
+        for t_data in map_definition.tickets:
+            tickets.append(DestinationTicket(t_data["start"], t_data["end"], t_data["points"]))
+        return DestinationTicketDeck(tickets)
+
+    def deal_starting_cards(self, players, deck):
+        # 4 cards per player
+        for player in players:
+            for _ in range(4):
+                card = deck.draw_blind()
+                if card:
+                    player.take_train_card(card)
+
+    def deal_starting_tickets(self, players, deck):
+        # Deal 3 tickets to each player initially
+        for player in players:
+            drawn_tickets = deck.draw_three()
+            player.take_tickets(drawn_tickets)
