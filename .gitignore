@@ -1,0 +1,7 @@
+/Sprint 2/class_diagram.md
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+*.spec
