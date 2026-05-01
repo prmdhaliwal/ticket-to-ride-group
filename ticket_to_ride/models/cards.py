@@ -6,14 +6,23 @@ class TrainCarCard:
         self.colour = colour
 
     def matches(self, route_colour):
+        return False
+
+
+class ColouredCarCard(TrainCarCard):
+    def matches(self, route_colour):
         if self.colour == route_colour:
             return True
 
-        # locomotive cards can be used as any colour
-        if self.colour == "locomotive":
-            return True
-
         return False
+
+
+class LocomotiveCard(TrainCarCard):
+    def __init__(self):
+        super().__init__("locomotive")
+
+    def matches(self, route_colour):
+        return True
 
 
 class TrainCar:
