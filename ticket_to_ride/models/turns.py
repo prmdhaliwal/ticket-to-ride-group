@@ -60,7 +60,7 @@ class TurnManager:
             return False, "That route has already been claimed."
 
         if player.trains_left < route.length:
-            return False, "Not enough train pieces."
+            return False, "Not enough bus pieces."
 
         # use the first matching cards in players hand
         matching_cards = player.matching_cards(route.colour)
@@ -71,7 +71,7 @@ class TurnManager:
                 cards_to_use.append(card)
 
         if len(cards_to_use) < route.length:
-            return False, "Not enough matching train cards."
+            return False, "Not enough matching transportation cards."
 
         player.remove_cards(cards_to_use)
         player.trains_left -= route.length
@@ -80,7 +80,7 @@ class TurnManager:
         route.owner = player
         route.placed_trains = []
 
-        # train pieces now on the claimed route
+        # bus pieces now on the claimed route
         for _ in range(route.length):
             train = TrainCar(player, route)
             route.placed_trains.append(train)
@@ -120,8 +120,6 @@ class TurnManager:
             2: 2,
             3: 4,
             4: 7,
-            5: 10,
-            6: 15,
         }
 
         if length in score_table:

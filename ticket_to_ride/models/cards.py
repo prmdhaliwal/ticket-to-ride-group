@@ -1,4 +1,4 @@
-"""Train card and train piece classes."""
+"""Transportation card and bus piece classes."""
 
 
 class TrainCarCard:
@@ -19,6 +19,7 @@ class ColouredCarCard(TrainCarCard):
 
 class LocomotiveCard(TrainCarCard):
     def __init__(self):
+        # wild bus card in the london version
         super().__init__("locomotive")
 
     def matches(self, route_colour):

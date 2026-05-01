@@ -6,7 +6,7 @@ class ScoringMarker:
 
 
 class Player:
-    def __init__(self, name, trains_left=45):
+    def __init__(self, name, trains_left=17):
         self.name = name
         self.train_cards = []
         self.trains_left = trains_left
