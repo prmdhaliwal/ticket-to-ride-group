@@ -1,5 +1,8 @@
 """Turn flow classes."""
 
+from models.cards import LocomotiveCard
+from models.decks import FaceUpPool
+from models.decks import TrainCarCardDeck
 from models.cards import TrainCar
 from models.core import Subject
 
@@ -58,7 +61,7 @@ class TurnManager(Subject):
         player = self.get_current_player()
 
         if self.action_taken:
-            return False, "Only one route may be claimed per turn."
+            return False, "Turn over."
 
         if route not in self.board.routes:
             return False, "That route is not on the board."
@@ -137,3 +140,59 @@ class TurnManager(Subject):
             return score_table[length]
 
         return 0
+    
+    def draw_train_cards(self, from_deck = False, pool_index = None):
+        """
+        Draws two train cards for the current player. A locomotive drawn from the face up pool count as two.
+
+        Args:
+            deck (boolean): True if cards should be drawn from train car card deck.
+            pool (int | None): Contains index of card in face up pool to draw from (optional).
+        
+        Returns:
+            tuple: A tuple containing:
+                - result (boolean): True if action completed.
+                - message (string): Action description.
+        """
+
+        if self.end_game_tracker.game_over():
+            return False, "The game is over."
+        
+        if self.action_taken:
+            return False, "Turn over."
+        
+        current_player = self.get_current_player()
+
+        # Draws from face up pool and returns False if turn over, True otherwise.
+        def draw_from_face_up():
+            pool_card = self.face_up_pool.draw_face_up(pool_index)
+            current_player.take_train_card(pool_card)
+
+            # If face up card is a locomotive, return fasle to indicate turn over.
+            if isinstance(pool_card, LocomotiveCard):
+                return False
+            
+            return True
+
+        # Draws from face up pool and returns False if turn over, True otherwise.
+        def draw_from_deck():
+            deck_card = self.transport_deck.draw_blind()
+            current_player.take_train_card(deck_card)
+            return True
+
+        if from_deck and pool_index:
+            # If user chose to draw from both train car card deck and face up pool.
+            if draw_from_face_up():
+                draw_from_deck()
+        elif from_deck:
+            # If user chose to draw from train car card deck only.
+            if draw_from_deck():
+                draw_from_deck()
+        else:
+            # If user chose to draw from face up pool only.
+            if draw_from_face_up():
+                draw_from_face_up()
+        
+        self.action_taken = True
+        self.notify()  # Notify observers that the board state changed
+        return True, "Bus card(s) claimed."

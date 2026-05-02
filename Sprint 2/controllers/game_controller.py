@@ -77,3 +77,13 @@ class GameController:
         players = self.turn_manager.players
         board = self.turn_manager.board
         return self.scoring.winners(players, board)
+    
+    def draw_train_cards(self, from_deck = False, pool_index = None):
+        if self.turn_manager is None:
+            return False, "Game has not been set up."
+
+        if pool_index < 0 or pool_index >= len(self.transport_deck()):
+            return False, "Select a valid face up card first."
+
+        return self.turn_manager.draw_train_cards(from_deck, pool_index)
+        
