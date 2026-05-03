@@ -1,6 +1,6 @@
 """Main Tkinter window."""
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from models.core import Observer
 
 class MainWindow(Observer):
@@ -9,50 +9,53 @@ class MainWindow(Observer):
         self.controller = controller
         
         self.root.title("Ticket to Ride - London")
-        self.root.geometry("1000x600")
+        self.root.geometry("1280x720")
         
         self.setup_ui()
         self.update()
 
     def setup_ui(self):
-        self.status_label = tk.Label(self.root, text="Loading game...", font=("Arial", 16))
+        self.status_label = ttk.Label(self.root, text="Loading game...", font=("Arial", 16))
         self.status_label.pack(pady=10)
         
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        main_frame = ttk.Frame(self.root)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        left_frame = tk.Frame(main_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        tk.Label(left_frame, text="Routes").pack()
+        main_frame.columnconfigure(0, weight=2)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(2, weight=1)
+        main_frame.rowconfigure(0, weight=1)
         
-        self.route_listbox = tk.Listbox(left_frame, width=50)
-        self.route_listbox.pack(fill=tk.BOTH, expand=True)
+        left_frame = ttk.LabelFrame(main_frame, text="Routes", padding=10)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
-        self.claim_btn = tk.Button(left_frame, text="Claim Route", command=self.claim_route)
+        self.route_listbox = ttk.Treeview(left_frame, show="tree", selectmode="browse")
+        self.route_listbox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        self.claim_btn = ttk.Button(left_frame, text="Claim Route", command=self.claim_route, style="Accent.TButton")
         self.claim_btn.pack(pady=5)
         
-        mid_frame = tk.Frame(main_frame)
-        mid_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
-        tk.Label(mid_frame, text="Face-Up Cards").pack()
+        mid_frame = ttk.LabelFrame(main_frame, text="Actions & Cards", padding=10)
+        mid_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10))
         
-        self.pool_listbox = tk.Listbox(mid_frame, width=30, height=5)
-        self.pool_listbox.pack()
+        ttk.Label(mid_frame, text="Face-Up Cards").pack(anchor=tk.W, pady=(0, 5))
+        self.pool_listbox = ttk.Treeview(mid_frame, show="tree", selectmode="browse", height=5)
+        self.pool_listbox.pack(pady=(0, 10), fill=tk.X)
         
-        self.draw_pool_btn = tk.Button(mid_frame, text="Draw from Pool", command=self.draw_pool)
-        self.draw_pool_btn.pack(pady=5)
+        self.draw_pool_btn = ttk.Button(mid_frame, text="Draw from Pool", command=self.draw_pool)
+        self.draw_pool_btn.pack(pady=5, fill=tk.X)
         
-        self.draw_deck_btn = tk.Button(mid_frame, text="Draw 1 from Deck", command=self.draw_deck)
-        self.draw_deck_btn.pack(pady=5)
+        self.draw_deck_btn = ttk.Button(mid_frame, text="Draw 1 from Deck", command=self.draw_deck)
+        self.draw_deck_btn.pack(pady=5, fill=tk.X)
         
-        self.draw_tickets_btn = tk.Button(mid_frame, text="Draw Tickets", command=self.draw_tickets)
-        self.draw_tickets_btn.pack(pady=5)
+        self.draw_tickets_btn = ttk.Button(mid_frame, text="Draw Tickets", command=self.draw_tickets)
+        self.draw_tickets_btn.pack(pady=5, fill=tk.X)
         
-        self.end_turn_btn = tk.Button(mid_frame, text="End Turn", command=self.handle_end_turn)
-        self.end_turn_btn.pack(pady=20)
+        self.end_turn_btn = ttk.Button(mid_frame, text="End Turn", command=self.handle_end_turn, style="Accent.TButton")
+        self.end_turn_btn.pack(pady=(20, 5), fill=tk.X)
         
-        right_frame = tk.Frame(main_frame)
-        right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        tk.Label(right_frame, text="Player Status").pack()
+        right_frame = ttk.LabelFrame(main_frame, text="Player Status", padding=10)
+        right_frame.grid(row=0, column=2, sticky="nsew")
         
         self.hand_text = tk.Text(right_frame, width=40, state=tk.DISABLED)
         self.hand_text.pack(fill=tk.BOTH, expand=True)
@@ -64,20 +67,22 @@ class MainWindow(Observer):
         self.update()
 
     def claim_route(self):
-        selection = self.route_listbox.curselection()
+        selection = self.route_listbox.selection()
         if not selection:
             messagebox.showwarning("Warning", "Select a route.")
             return
-        success, msg = self.controller.claim_route(selection[0])
+        index = self.route_listbox.index(selection[0])
+        success, msg = self.controller.claim_route(index)
         if not success:
             messagebox.showerror("Error", msg)
 
     def draw_pool(self):
-        selection = self.pool_listbox.curselection()
+        selection = self.pool_listbox.selection()
         if not selection:
             messagebox.showwarning("Warning", "Select a face-up card.")
             return
-        success, msg = self.controller.draw_train_card(from_deck=False, pool_index=selection[0])
+        index = self.pool_listbox.index(selection[0])
+        success, msg = self.controller.draw_train_card(from_deck=False, pool_index=index)
         if not success:
             messagebox.showerror("Error", msg)
 
@@ -97,22 +102,26 @@ class MainWindow(Observer):
     def show_ticket_selection(self, tickets):
         top = tk.Toplevel(self.root)
         top.title("Select Tickets")
-        top.geometry("300x200")
+        top.protocol("WM_DELETE_WINDOW", lambda: None) # Disable closing window
         
-        tk.Label(top, text="Select tickets to keep:").pack()
-        listbox = tk.Listbox(top, selectmode=tk.MULTIPLE, width=40)
-        listbox.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(top, text="Select tickets to keep:").pack(pady=(15, 10), padx=20)
         
+        check_frame = ttk.Frame(top)
+        check_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+        
+        ticket_vars = []
         for t in tickets:
-            listbox.insert(tk.END, f"{t.from_city} to {t.to_city} ({t.points})")
+            var = tk.BooleanVar(value=True)
+            cb = ttk.Checkbutton(check_frame, text=f"{t.from_city} to {t.to_city} ({t.points})", variable=var)
+            cb.pack(anchor=tk.W, pady=2)
+            ticket_vars.append(var)
             
         def confirm():
-            selection = listbox.curselection()
             kept = []
             returned = []
 
-            for index in range(len(tickets)):
-                if index in selection:
+            for index, var in enumerate(ticket_vars):
+                if var.get():
                     kept.append(tickets[index])
                 else:
                     returned.append(tickets[index])
@@ -123,7 +132,7 @@ class MainWindow(Observer):
             else:
                 top.destroy()
             
-        tk.Button(top, text="Keep Selected", command=confirm).pack(pady=5)
+        ttk.Button(top, text="Keep Selected", command=confirm, style="Accent.TButton").pack(pady=(15, 20), padx=20)
 
     def update(self):
         current_player = self.controller.current_player()
@@ -165,20 +174,37 @@ class MainWindow(Observer):
             self.draw_pool_btn.config(state=state)
             self.draw_deck_btn.config(state=state)
             self.draw_tickets_btn.config(state=state)
-            self.end_turn_btn.config(state=tk.NORMAL)
+            self.end_turn_btn.config(state=tk.NORMAL if turn_ended else tk.DISABLED)
             
-            self.route_listbox.delete(0, tk.END)
-            for r in self.controller.get_routes():
-                owner_name = "None"
-
-                if r.owner:
-                    owner_name = r.owner.name
-
-                self.route_listbox.insert(tk.END, f"{r.city_a.name} - {r.city_b.name} ({r.length} {r.colour.value}) Owner: {owner_name}")
+            # Efficiently update routes instead of delete/recreate
+            routes = self.controller.get_routes()
+            route_items = self.route_listbox.get_children()
+            
+            if len(route_items) != len(routes):
+                self.route_listbox.delete(*route_items)
+                for r in routes:
+                    owner_name = r.owner.name if r.owner else "None"
+                    self.route_listbox.insert("", tk.END, text=f"{r.city_a.name} - {r.city_b.name} ({r.length} {r.colour.value}) Owner: {owner_name}")
+            else:
+                for i, r in enumerate(routes):
+                    owner_name = r.owner.name if r.owner else "None"
+                    new_text = f"{r.city_a.name} - {r.city_b.name} ({r.length} {r.colour.value}) Owner: {owner_name}"
+                    if self.route_listbox.item(route_items[i], "text") != new_text:
+                        self.route_listbox.item(route_items[i], text=new_text)
                 
-            self.pool_listbox.delete(0, tk.END)
-            for c in self.controller.get_face_up_cards():
-                self.pool_listbox.insert(tk.END, c.colour.value)
+            # Efficiently update pool
+            cards = self.controller.get_face_up_cards()
+            pool_items = self.pool_listbox.get_children()
+            
+            if len(pool_items) != len(cards):
+                self.pool_listbox.delete(*pool_items)
+                for c in cards:
+                    self.pool_listbox.insert("", tk.END, text=c.colour.value)
+            else:
+                for i, c in enumerate(cards):
+                    new_text = c.colour.value
+                    if self.pool_listbox.item(pool_items[i], "text") != new_text:
+                        self.pool_listbox.item(pool_items[i], text=new_text)
                 
             self.hand_text.config(state=tk.NORMAL)
             self.hand_text.delete(1.0, tk.END)
