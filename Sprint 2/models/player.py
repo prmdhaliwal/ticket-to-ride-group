@@ -35,9 +35,16 @@ class Player:
             return self.choose_cards_for_gray_route(route)
 
         matching_cards = self.matching_cards(route.colour)
+        coloured_cards = [c for c in matching_cards if c.colour != CardColor.LOCOMOTIVE]
+        loco_cards = [c for c in matching_cards if c.colour == CardColor.LOCOMOTIVE]
+        
         cards_to_use = []
 
-        for card in matching_cards:
+        for card in coloured_cards:
+            if len(cards_to_use) < route.length:
+                cards_to_use.append(card)
+
+        for card in loco_cards:
             if len(cards_to_use) < route.length:
                 cards_to_use.append(card)
 
@@ -59,7 +66,9 @@ class Player:
 
                 cards_by_colour[card.colour].append(card)
 
-        for colour in cards_by_colour:
+        sorted_colours = sorted(cards_by_colour.keys(), key=lambda c: len(cards_by_colour[c]), reverse=True)
+
+        for colour in sorted_colours:
             cards_to_use = []
 
             for card in cards_by_colour[colour]:

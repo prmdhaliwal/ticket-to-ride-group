@@ -62,8 +62,8 @@ class MainWindow(Observer):
 
     def handle_end_turn(self):
         msg = self.controller.end_turn()
-        if msg == "The game is over." or msg == "Game over.":
-            messagebox.showinfo("Game Over", msg)
+        if msg not in ["Next turn.", "The game is over.", "Game over."]:
+            messagebox.showwarning("Warning", msg)
         self.update()
 
     def claim_route(self):
