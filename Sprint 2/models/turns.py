@@ -224,3 +224,37 @@ class TurnManager(Subject):
         self.action_taken = True
         self.notify()  # Notify observers that the board state changed
         return True, "Bus card(s) claimed."
+    
+    def draw_destination_tickets(self, keep = None):
+        """
+        If keep is provided, add the provided destination tickets to the current players hand. Else, draw 3 destination tickets for the current player.
+
+        Args:
+            keep (DestinationTicket[] | None): Holds the tickets the player has chosen to keep.
+        
+        Returns:
+            tuple: A tuple containing:
+                - result (DestinationTicket[] | boolean): Tickets drawn / True if destination cards claimed.
+                - message (string): Action description.
+        """
+
+        if self.end_game_tracker.game_over():
+            return False, "The game is over."
+        
+        if self.action_taken:
+            return False, "Turn over."
+        
+        current_player = self.get_current_player()
+
+        if keep:
+            current_player.take_tickets(keep)
+
+            self.action_taken = True
+            self.notify()  # Notify observers that the board state changed
+            return True, "Destination card(s) claimed."
+        else:
+            tickets = self.ticket_deck.draw_three()
+
+            self.action_taken = True
+            self.notify()  # Notify observers that the board state changed
+            return tickets, "Destination card(s) drawn."
