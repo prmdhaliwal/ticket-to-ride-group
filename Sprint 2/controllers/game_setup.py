@@ -6,7 +6,7 @@ from models.decks import TrainCarCardDeck, DestinationTicketDeck, FaceUpPool
 from models.cards import ColouredCarCard, LocomotiveCard
 from models.tickets import DestinationTicket
 from models.core import CardColor
-from controllers.turn_manager import TurnManager
+from models.turns import TurnManager
 
 
 class GameSetup:

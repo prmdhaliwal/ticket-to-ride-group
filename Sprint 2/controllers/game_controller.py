@@ -82,8 +82,9 @@ class GameController:
         if self.turn_manager is None:
             return False, "Game has not been set up."
 
-        if pool_index < 0 or pool_index >= len(self.transport_deck()):
-            return False, "Select a valid face up card first."
+        if pool_index is not None:
+            if pool_index < 0 or pool_index >= len(self.turn_manager.face_up_pool.face_up_cards):
+                return False, "Select a valid face up card first."
 
         return self.turn_manager.draw_train_cards(from_deck, pool_index)
     
