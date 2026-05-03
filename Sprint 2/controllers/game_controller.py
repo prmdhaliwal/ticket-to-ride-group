@@ -86,4 +86,10 @@ class GameController:
             return False, "Select a valid face up card first."
 
         return self.turn_manager.draw_train_cards(from_deck, pool_index)
+    
+    def draw_destination_tickets(self, keep = None):
+        if self.turn_manager is None:
+            return False, "Game has not been set up."
+
+        return self.turn_manager.draw_destination_tickets(keep)
         
