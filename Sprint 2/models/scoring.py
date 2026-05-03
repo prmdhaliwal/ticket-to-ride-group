@@ -2,14 +2,16 @@
 
 
 class ScoringStrategy:
-    pass
+    def final_scores(self, players, board):
+        raise NotImplementedError
+
+    def winners(self, players, board):
+        raise NotImplementedError
 
 
 class StandardScoring(ScoringStrategy):
     def final_scores(self, players, board):
-        # total score after tickets and longest path bonus
         scores = {}
-        longest_players = self.longest_path_players(players, board)
 
         for player in players:
             total = player.score
@@ -20,9 +22,7 @@ class StandardScoring(ScoringStrategy):
                 else:
                     total -= ticket.value()
 
-            if player in longest_players:
-                if self.longest_path_length(player, board) > 0:
-                    total += 10
+            total += self.district_score(player, board)
 
             scores[player] = total
 
@@ -45,7 +45,6 @@ class StandardScoring(ScoringStrategy):
                 winners.append(player)
 
         winners = self.tie_by_completed_tickets(winners, board)
-        winners = self.tie_by_longest_path(winners, board)
         return winners
 
     def tie_by_completed_tickets(self, players, board):
@@ -64,23 +63,6 @@ class StandardScoring(ScoringStrategy):
                 tied.append(player)
 
         return tied
-
-    def tie_by_longest_path(self, players, board):
-        # second tie breaker is longest path
-        tied = []
-        best_length = None
-
-        for player in players:
-            path_length = self.longest_path_length(player, board)
-
-            if best_length is None or path_length > best_length:
-                best_length = path_length
-                tied = []
-                tied.append(player)
-            elif path_length == best_length:
-                tied.append(player)
-
-        return tied  
     
     def completed_ticket_count(self, player, board):
         # count tickets where both cities are connected
@@ -92,62 +74,59 @@ class StandardScoring(ScoringStrategy):
 
         return completed
 
-    def walk_route(self, city, unused_routes, current_length):
-        # helper to keep walking through unused routes from the current city
-        best_length = current_length
+    def district_score(self, player, board):
+        total = 0
 
-        for route in unused_routes:
-            next_city = None
+        for district in board.districts:
+            if self.district_complete(player, board, district):
+                total += district["points"]
 
-            if route.city_a == city:
-                next_city = route.city_b
+        return total
 
-            if route.city_b == city:
-                next_city = route.city_a
+    def completed_districts(self, player, board):
+        completed = []
 
-            if next_city is not None:
-                remaining_routes = unused_routes.copy()
-                remaining_routes.remove(route)
-                path_length = self.walk_route(next_city, remaining_routes, current_length + route.length)
+        for district in board.districts:
+            if self.district_complete(player, board, district):
+                completed.append(district["name"])
 
-                if path_length > best_length:
-                    best_length = path_length
+        return completed
 
-        return best_length
+    def district_complete(self, player, board, district):
+        locations = district["locations"]
 
-    def longest_path_players(self, players, board):
-        # players tied for the longest path bonus
-        tied = []
-        best_length = 0
+        if not locations:
+            return False
 
-        for player in players:
-            path_length = self.longest_path_length(player, board)
+        for start in locations:
+            for end in locations:
+                if start != end and not self.cities_connected(start, end, player, board):
+                    return False
 
-            if path_length > best_length:
-                best_length = path_length
-                tied = []
-                tied.append(player)
-            elif path_length == best_length:
-                tied.append(player)
+        return True
 
-        return tied
+    def cities_connected(self, start_city, target_city, player, board):
+        start = self.city_name(start_city)
+        target = self.city_name(target_city)
+        connected = [start]
+        changed = True
 
-    def longest_path_length(self, player, board):
-        # try each claimed route as the start of a path
-        claimed_routes = board.claimed_routes(player)
-        best_length = 0
+        while changed:
+            changed = False
 
-        for route in claimed_routes:
-            remaining_routes = claimed_routes.copy()
-            remaining_routes.remove(route)
+            for route in board.claimed_routes(player):
+                city_a = self.city_name(route.city_a)
+                city_b = self.city_name(route.city_b)
 
-            length_from_a = self.walk_route(route.city_a, remaining_routes, route.length)
-            length_from_b = self.walk_route(route.city_b, remaining_routes, route.length)
+                if city_a in connected and city_b not in connected:
+                    connected.append(city_b)
+                    changed = True
 
-            if length_from_a > best_length:
-                best_length = length_from_a
+                if city_b in connected and city_a not in connected:
+                    connected.append(city_a)
+                    changed = True
 
-            if length_from_b > best_length:
-                best_length = length_from_b
+        return target in connected
 
-        return best_length
+    def city_name(self, city):
+        return getattr(city, "name", city)
