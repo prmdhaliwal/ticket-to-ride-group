@@ -13,6 +13,7 @@ class MapDefinition:
         self.cities = []
         self.routes = []
         self.tickets = []
+        self.districts = []
         
         # Scoring table specific to the London map
         self.route_scores = {
@@ -37,6 +38,13 @@ class MapDefinition:
         self.tickets.append({
             "start": city_a, 
             "end": city_b, 
+            "points": points
+        })
+
+    def add_district(self, district_name, locations, points):
+        self.districts.append({
+            "name": district_name,
+            "locations": locations,
             "points": points
         })
 
