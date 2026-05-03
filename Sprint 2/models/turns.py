@@ -48,7 +48,7 @@ class TurnManager(Subject):
         self.ticket_deck = ticket_deck
         self.face_up_pool = face_up_pool
         self.current_player_index = 0
-        self.action_taken = False
+        self.actions_taken = []
         self.end_game_tracker = EndGameTracker()
 
     def get_current_player(self):
@@ -60,8 +60,8 @@ class TurnManager(Subject):
 
         player = self.get_current_player()
 
-        if self.action_taken:
-            return False, "Turn over."
+        if self.actions_taken:
+            return False, "Turn over or another action taken."
 
         if route not in self.board.routes:
             return False, "That route is not on the board."
@@ -96,13 +96,16 @@ class TurnManager(Subject):
             train = TrainCar(player, route)
             route.placed_trains.append(train)
 
-        self.action_taken = True
+        self.actions_taken.append(("route_claimed", route))
         self.notify()  # Notify observers that the board state changed
         return True, "Route claimed."
 
     def next_turn(self):
         if self.end_game_tracker.game_over():
             return "The game is over."
+            
+        if not self.turn_ended():
+            return "You must complete an action before you end your turn."
 
         player = self.get_current_player()
 
@@ -121,7 +124,7 @@ class TurnManager(Subject):
         if self.current_player_index >= len(self.players):
             self.current_player_index = 0
 
-        self.action_taken = False
+        self.actions_taken = []
         self.notify()  # Notify observers that turn has changed
         return "Next turn."
 
@@ -140,93 +143,128 @@ class TurnManager(Subject):
             return score_table[length]
 
         return 0
-    
-    def draw_train_cards(self, from_deck = False, pool_index = None):
-        """
-        Draws two train cards for the current player. A locomotive drawn from the face up pool count as two.
-
-        Args:
-            deck (boolean): True if cards should be drawn from train car card deck.
-            pool (int | None): Contains index of card in face up pool to draw from (optional).
         
-        Returns:
-            tuple: A tuple containing:
-                - result (boolean): True if action completed.
-                - message (string): Action description.
-        """
-
-        if self.end_game_tracker.game_over():
-            return False, "The game is over."
-        
-        if self.action_taken:
-            return False, "Turn over."
-        
-        current_player = self.get_current_player()
-
-        # Draws from face up pool and returns False if turn over, True otherwise.
-        def draw_from_face_up():
-            pool_card = self.face_up_pool.draw_face_up(pool_index)
-            current_player.take_train_card(pool_card)
-
-            # If face up card is a locomotive, return fasle to indicate turn over.
-            if isinstance(pool_card, LocomotiveCard):
-                return False
+    def turn_ended(self):
+        """Checks if the current player's turn has ended."""
+        # Check if no actions have been taken yet.
+        if not self.actions_taken:
+            return False
             
-            return True
-
-        # Draws from face up pool and returns False if turn over, True otherwise.
-        def draw_from_deck():
-            deck_card = self.transport_deck.draw_blind()
-            current_player.take_train_card(deck_card)
-            return True
-
-        if from_deck and pool_index:
-            # If user chose to draw from both train car card deck and face up pool.
-            if draw_from_face_up():
-                draw_from_deck()
-        elif from_deck:
-            # If user chose to draw from train car card deck only.
-            if draw_from_deck():
-                draw_from_deck()
-        else:
-            # If user chose to draw from face up pool only.
-            if draw_from_face_up():
-                draw_from_face_up()
+        # Get the first item of the last action taken.
+        last_action = self.actions_taken[-1][0]
         
-        self.action_taken = True
-        self.notify()  # Notify observers that the board state changed
-        return True, "Bus card(s) claimed."
+        # Turn ends immediately if a route is claimed.
+        if last_action == "route_claimed":
+            return True
+            
+        # Turn ends after keeping drawn destination tickets.
+        if last_action == "destination_tickets_kept":
+            return True
+            
+        # Turn ends if player has drawn two train cards or one face-up locomotive.
+        if last_action == "train_card_drawn":
+            drawn_cards = [a for a in self.actions_taken if a[0] == "train_card_drawn"]
+            if len(drawn_cards) >= 2:
+                return True
+                
+            if len(drawn_cards) == 1:
+                card = drawn_cards[0][1]
+                source = drawn_cards[0][2]
+                if isinstance(card, LocomotiveCard) and source == "face_up":
+                    return True
+                    
+        return False
     
-    def draw_destination_tickets(self, keep = None):
-        """
-        If keep is provided, add the provided destination tickets to the current players hand. Else, draw 3 destination tickets for the current player.
-
-        Args:
-            keep (DestinationTicket[] | None): Holds the tickets the player has chosen to keep.
-        
-        Returns:
-            tuple: A tuple containing:
-                - result (DestinationTicket[] | boolean): Tickets drawn / True if destination cards claimed.
-                - message (string): Action description.
-        """
-
+    def draw_train_card(self, from_deck = False, pool_index = None):
+        """Draws a single train car card from either the deck or face-up pool."""
+        # Stop action if the game is already over.
         if self.end_game_tracker.game_over():
             return False, "The game is over."
         
-        if self.action_taken:
-            return False, "Turn over."
+        # Check if the player has taken actions that end their turn or prevent drawing cards.
+        if self.actions_taken:
+            if self.actions_taken[0][0] != "train_card_drawn":
+                return False, "You have already taken a different action this turn."
+                
+            drawn_cards = [a for a in self.actions_taken if a[0] == "train_card_drawn"]
+            if len(drawn_cards) >= 2:
+                return False, "Turn over."
+                
+            if len(drawn_cards) == 1:
+                card = drawn_cards[0][1]
+                source = drawn_cards[0][2]
+                if isinstance(card, LocomotiveCard) and source == "face_up":
+                    return False, "Turn over."
         
         current_player = self.get_current_player()
 
-        if keep:
-            current_player.take_tickets(keep)
-
-            self.action_taken = True
-            self.notify()  # Notify observers that the board state changed
-            return True, "Destination card(s) claimed."
+        if from_deck:
+            # Blind draw from the transport deck.
+            deck_card = self.transport_deck.draw_blind()
+            if not deck_card:
+                return False, "Deck is empty."
+            current_player.take_train_card(deck_card)
+            self.actions_taken.append(("train_card_drawn", deck_card, "blind"))
+            self.notify()
+            return True, "Blind card drawn."
         else:
-            tickets = self.ticket_deck.draw_three()
-
-            self.action_taken = True
-            self.notify()  # Notify observers that the board state changed
-            return tickets, "Destination card(s) drawn."
+            # Draw a specific card from the face-up pool.
+            if pool_index is None or pool_index < 0 or pool_index >= len(self.face_up_pool.face_up_cards):
+                return False, "Invalid face-up card index."
+                
+            pool_card = self.face_up_pool.face_up_cards[pool_index]
+            
+            # Prevent drawing a face-up locomotive as the second card.
+            if isinstance(pool_card, LocomotiveCard):
+                if len(self.actions_taken) == 1:
+                    return False, "Cannot draw a face-up Locomotive as your second card."
+            
+            # Remove from pool and refresh it.
+            self.face_up_pool.draw_face_up(pool_index)
+            self.face_up_pool.refresh(self.transport_deck)
+            
+            current_player.take_train_card(pool_card)
+            self.actions_taken.append(("train_card_drawn", pool_card, "face_up"))
+            self.notify()
+            return True, "Face-up card drawn."
+    
+    def draw_destination_tickets(self):
+        """Draws three destination tickets for the player to choose from."""
+        # Stop action if the game is already over.
+        if self.end_game_tracker.game_over():
+            return False, "The game is over."
+        
+        # Enforce that drawing tickets must be the first action.
+        if self.actions_taken:
+            return False, "Turn over or another action taken."
+        
+        # Draw up to three tickets from the deck.
+        tickets = self.ticket_deck.draw_three()
+        if not tickets:
+            return False, "No tickets left."
+            
+        self.actions_taken.append(("destination_tickets_drawn", tickets))
+        self.notify()
+        return tickets, "Destination cards drawn."
+        
+    def keep_destination_tickets(self, kept_tickets, returned_tickets):
+        """Keeps selected destination tickets and returns the rest to the deck."""
+        # Stop action if the game is already over.
+        if self.end_game_tracker.game_over():
+            return False, "The game is over."
+            
+        # Ensure tickets were drawn prior to keeping them.
+        if not self.actions_taken or self.actions_taken[-1][0] != "destination_tickets_drawn":
+            return False, "You must draw tickets first."
+            
+        # Player is forced to keep at least one ticket.
+        if len(kept_tickets) < 1:
+            return False, "You must keep at least one ticket."
+            
+        current_player = self.get_current_player()
+        current_player.take_tickets(kept_tickets)
+        self.ticket_deck.return_tickets(returned_tickets)
+        
+        self.actions_taken.append(("destination_tickets_kept", kept_tickets))
+        self.notify()
+        return True, "Tickets kept."

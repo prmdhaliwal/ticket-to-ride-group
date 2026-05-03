@@ -78,7 +78,7 @@ class GameController:
         board = self.turn_manager.board
         return self.scoring.winners(players, board)
     
-    def draw_train_cards(self, from_deck = False, pool_index = None):
+    def draw_train_card(self, from_deck = False, pool_index = None):
         if self.turn_manager is None:
             return False, "Game has not been set up."
 
@@ -86,11 +86,27 @@ class GameController:
             if pool_index < 0 or pool_index >= len(self.turn_manager.face_up_pool.face_up_cards):
                 return False, "Select a valid face up card first."
 
-        return self.turn_manager.draw_train_cards(from_deck, pool_index)
+        return self.turn_manager.draw_train_card(from_deck, pool_index)
     
-    def draw_destination_tickets(self, keep = None):
+    def draw_destination_tickets(self):
         if self.turn_manager is None:
             return False, "Game has not been set up."
 
-        return self.turn_manager.draw_destination_tickets(keep)
-        
+        return self.turn_manager.draw_destination_tickets()
+
+    def keep_destination_tickets(self, kept_tickets, returned_tickets):
+        if self.turn_manager is None:
+            return False, "Game has not been set up."
+
+        return self.turn_manager.keep_destination_tickets(kept_tickets, returned_tickets)
+
+    def get_face_up_cards(self):
+        if self.turn_manager is None:
+            return []
+        return self.turn_manager.face_up_pool.face_up_cards
+
+    def turn_ended(self):
+        if self.turn_manager is None:
+            return False
+        return self.turn_manager.turn_ended()
+
