@@ -4,6 +4,7 @@ from models.cards import LocomotiveCard
 from models.decks import FaceUpPool
 from models.decks import TrainCarCardDeck
 from models.cards import TrainCar
+from models.core import CardColor
 from models.core import Subject
 
 
@@ -66,29 +67,22 @@ class TurnManager(Subject):
         if route not in self.board.routes:
             return False, "That route is not on the board."
 
-        # Pass total players to is_available for double-route logic
-        if not route.is_available(len(self.players)):
+        if not route.is_available(len(self.players), player):
             return False, "That route has already been claimed."
 
         if player.trains_left < route.length:
             return False, "Not enough bus pieces."
 
-        # use the first matching cards in players hand
-        matching_cards = player.matching_cards(route.colour)
-        cards_to_use = []
-
-        for card in matching_cards:
-            if len(cards_to_use) < route.length:
-                cards_to_use.append(card)
-
+        cards_to_use = self.cards_for_route(player, route)
         if len(cards_to_use) < route.length:
             return False, "Not enough matching transportation cards."
 
         player.remove_cards(cards_to_use)
-        player.trains_left -= route.length
-        player.score += self.route_points(route.length)
+        self.transport_deck.discard_cards(cards_to_use)
+        player.place_trains(route.length)
+        player.move_score(self.route_points(route.length))
 
-        route.owner = player
+        route.claim(player)
         route.placed_trains = []
 
         # bus pieces now on the claimed route
@@ -99,6 +93,40 @@ class TurnManager(Subject):
         self.actions_taken.append(("route_claimed", route))
         self.notify()  # Notify observers that the board state changed
         return True, "Route claimed."
+
+    def cards_for_route(self, player, route):
+        if route.colour == CardColor.GRAY:
+            return self.cards_for_gray_route(player, route)
+
+        matching_cards = player.matching_cards(route.colour)
+        cards_to_use = matching_cards[:route.length]
+
+        if route.can_accept(cards_to_use):
+            return cards_to_use
+
+        return []
+
+    def cards_for_gray_route(self, player, route):
+        wild_cards = []
+        cards_by_colour = {}
+
+        for card in player.train_cards:
+            if isinstance(card, LocomotiveCard):
+                wild_cards.append(card)
+            else:
+                cards_by_colour.setdefault(card.colour, []).append(card)
+
+        for colour_cards in cards_by_colour.values():
+            cards_to_use = (colour_cards + wild_cards)[:route.length]
+
+            if route.can_accept(cards_to_use):
+                return cards_to_use
+
+        cards_to_use = wild_cards[:route.length]
+        if route.can_accept(cards_to_use):
+            return cards_to_use
+
+        return []
 
     def next_turn(self):
         if self.end_game_tracker.game_over():
@@ -132,7 +160,7 @@ class TurnManager(Subject):
         return self.end_game_tracker.game_over()
 
     def route_points(self, length):
-        score_table = {
+        score_table = self.board.route_scores or {
             1: 1,
             2: 2,
             3: 4,

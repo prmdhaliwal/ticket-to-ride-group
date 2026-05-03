@@ -38,14 +38,7 @@ class Player:
                 self.train_cards.remove(card)
 
     def can_claim_route(self, route, cards):
-        if len(cards) != route.length:
-            return False
-
-        for card in cards:
-            if not card.matches(route.colour):
-                return False
-
-        return True
+        return route.can_accept(cards)
 
     def take_tickets(self, new_tickets):
         self.destination_tickets.extend(new_tickets)
