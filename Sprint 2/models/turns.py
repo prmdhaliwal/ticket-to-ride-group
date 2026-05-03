@@ -72,14 +72,14 @@ class TurnManager(Subject):
         if player.trains_left < route.length:
             return False, "Not enough bus pieces."
 
-        cards_to_use = self.cards_for_route(player, route)
+        cards_to_use = player.choose_cards_for_route(route)
         if len(cards_to_use) < route.length:
             return False, "Not enough matching transportation cards."
 
         player.remove_cards(cards_to_use)
         self.transport_deck.discard_cards(cards_to_use)
         player.place_trains(route.length)
-        player.move_score(self.route_points(route.length))
+        player.move_score(route.points(self.board.route_scores))
 
         route.claim(player)
         route.placed_trains = []
@@ -92,60 +92,6 @@ class TurnManager(Subject):
         self.actions_taken.append(("route_claimed", route))
         self.notify()  # Notify observers that the board state changed
         return True, "Route claimed."
-
-    def cards_for_route(self, player, route):
-        if route.colour == CardColor.GRAY:
-            return self.cards_for_gray_route(player, route)
-
-        matching_cards = player.matching_cards(route.colour)
-        cards_to_use = []
-
-        for card in matching_cards:
-            if len(cards_to_use) < route.length:
-                cards_to_use.append(card)
-
-        if route.can_accept(cards_to_use):
-            return cards_to_use
-
-        return []
-
-    def cards_for_gray_route(self, player, route):
-        wild_cards = []
-        cards_by_colour = {}
-
-        for card in player.train_cards:
-            if card.colour == CardColor.LOCOMOTIVE:
-                wild_cards.append(card)
-            else:
-                if card.colour not in cards_by_colour:
-                    cards_by_colour[card.colour] = []
-
-                cards_by_colour[card.colour].append(card)
-
-        for colour in cards_by_colour:
-            cards_to_use = []
-
-            for card in cards_by_colour[colour]:
-                if len(cards_to_use) < route.length:
-                    cards_to_use.append(card)
-
-            for card in wild_cards:
-                if len(cards_to_use) < route.length:
-                    cards_to_use.append(card)
-
-            if route.can_accept(cards_to_use):
-                return cards_to_use
-
-        cards_to_use = []
-
-        for card in wild_cards:
-            if len(cards_to_use) < route.length:
-                cards_to_use.append(card)
-
-        if route.can_accept(cards_to_use):
-            return cards_to_use
-
-        return []
 
     def next_turn(self):
         if self.end_game_tracker.game_over():
@@ -178,19 +124,6 @@ class TurnManager(Subject):
     def is_game_over(self):
         return self.end_game_tracker.game_over()
 
-    def route_points(self, length):
-        score_table = self.board.route_scores or {
-            1: 1,
-            2: 2,
-            3: 4,
-            4: 7,
-        }
-
-        if length in score_table:
-            return score_table[length]
-
-        return 0
-        
     def turn_ended(self):
         """Checks if the current player's turn has ended."""
         # Check if no actions have been taken yet.

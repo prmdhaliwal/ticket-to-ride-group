@@ -1,5 +1,7 @@
 """Player classes."""
 
+from models.core import CardColor
+
 
 class ScoringMarker:
     def __init__(self):
@@ -27,6 +29,60 @@ class Player:
                 matching.append(card)
 
         return matching
+
+    def choose_cards_for_route(self, route):
+        if route.colour == CardColor.GRAY:
+            return self.choose_cards_for_gray_route(route)
+
+        matching_cards = self.matching_cards(route.colour)
+        cards_to_use = []
+
+        for card in matching_cards:
+            if len(cards_to_use) < route.length:
+                cards_to_use.append(card)
+
+        if route.can_accept(cards_to_use):
+            return cards_to_use
+
+        return []
+
+    def choose_cards_for_gray_route(self, route):
+        wild_cards = []
+        cards_by_colour = {}
+
+        for card in self.train_cards:
+            if card.colour == CardColor.LOCOMOTIVE:
+                wild_cards.append(card)
+            else:
+                if card.colour not in cards_by_colour:
+                    cards_by_colour[card.colour] = []
+
+                cards_by_colour[card.colour].append(card)
+
+        for colour in cards_by_colour:
+            cards_to_use = []
+
+            for card in cards_by_colour[colour]:
+                if len(cards_to_use) < route.length:
+                    cards_to_use.append(card)
+
+            for card in wild_cards:
+                if len(cards_to_use) < route.length:
+                    cards_to_use.append(card)
+
+            if route.can_accept(cards_to_use):
+                return cards_to_use
+
+        cards_to_use = []
+
+        for card in wild_cards:
+            if len(cards_to_use) < route.length:
+                cards_to_use.append(card)
+
+        if route.can_accept(cards_to_use):
+            return cards_to_use
+
+        return []
 
     def take_train_card(self, card):
         if card:
