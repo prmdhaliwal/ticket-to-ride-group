@@ -32,23 +32,53 @@ class Route:
     def claim(self, player):
         self.owner = player
 
-    def is_available(self, total_players_in_game):
+    def is_available(self, total_players_in_game, player=None):
         if self.owner is not None:
             return False
             
-        if self.twin_route is not None and total_players_in_game <= 3:
-            if self.twin_route.owner is not None:
+        if self.twin_route is not None:
+            if player is not None and self.twin_route.owner == player:
+                return False
+
+            if total_players_in_game == 2 and self.twin_route.owner is not None:
                 return False
                 
         return True
+
+    def can_accept(self, cards):
+        if len(cards) != self.length:
+            return False
+
+        if self.colour == CardColor.GRAY:
+            colours_used = set()
+
+            for card in cards:
+                if card.colour != CardColor.LOCOMOTIVE:
+                    colours_used.add(card.colour)
+
+            return len(colours_used) <= 1
+
+        for card in cards:
+            if not card.matches(self.colour):
+                return False
+
+        return True
+
+    def points(self, score_table):
+        return score_table.get(self.length, 0)
 
 
 class BoardMap:
     def __init__(self, map_definition=None):
         self.cities = {}
         self.routes = []
+        self.route_scores = {}
+        self.districts = []
 
         if map_definition is not None:
+            self.route_scores = getattr(map_definition, "route_scores", {}).copy()
+            self.districts = getattr(map_definition, "districts", []).copy()
+
             for name in map_definition.cities:
                 self.cities[name] = City(name)
 
