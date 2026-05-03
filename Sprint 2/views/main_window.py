@@ -88,9 +88,10 @@ class MainWindow(Observer):
 
     def draw_tickets(self):
         result, msg = self.controller.draw_destination_tickets()
-        if not isinstance(result, list):
+        if result is False:
             messagebox.showerror("Error", msg)
             return
+
         self.show_ticket_selection(result)
 
     def show_ticket_selection(self, tickets):
@@ -107,8 +108,15 @@ class MainWindow(Observer):
             
         def confirm():
             selection = listbox.curselection()
-            kept = [tickets[i] for i in selection]
-            returned = [tickets[i] for i in range(len(tickets)) if i not in selection]
+            kept = []
+            returned = []
+
+            for index in range(len(tickets)):
+                if index in selection:
+                    kept.append(tickets[index])
+                else:
+                    returned.append(tickets[index])
+
             success, msg = self.controller.keep_destination_tickets(kept_tickets=kept, returned_tickets=returned)
             if not success:
                 messagebox.showerror("Error", msg)
@@ -122,10 +130,14 @@ class MainWindow(Observer):
         
         if self.controller.game_over():
             winners = self.controller.winners()
-            if isinstance(winners, list):
-                winner_names = ", ".join([w.name for w in winners])
-            else:
-                winner_names = winners.name
+            winner_names = ""
+
+            for winner in winners:
+                if winner_names:
+                    winner_names += ", "
+
+                winner_names += winner.name
+
             self.status_label.config(text=f"Game Over! Winners: {winner_names}")
             self.end_turn_btn.config(state=tk.DISABLED)
             
@@ -144,7 +156,11 @@ class MainWindow(Observer):
             )
             
             turn_ended = self.controller.turn_ended()
-            state = tk.DISABLED if turn_ended else tk.NORMAL
+            state = tk.NORMAL
+
+            if turn_ended:
+                state = tk.DISABLED
+
             self.claim_btn.config(state=state)
             self.draw_pool_btn.config(state=state)
             self.draw_deck_btn.config(state=state)
@@ -153,7 +169,11 @@ class MainWindow(Observer):
             
             self.route_listbox.delete(0, tk.END)
             for r in self.controller.get_routes():
-                owner_name = r.owner.name if r.owner else "None"
+                owner_name = "None"
+
+                if r.owner:
+                    owner_name = r.owner.name
+
                 self.route_listbox.insert(tk.END, f"{r.city_a.name} - {r.city_b.name} ({r.length} {r.colour.value}) Owner: {owner_name}")
                 
             self.pool_listbox.delete(0, tk.END)
@@ -167,7 +187,11 @@ class MainWindow(Observer):
             card_counts = {}
             for c in current_player.train_cards:
                 color = c.colour.value
-                card_counts[color] = card_counts.get(color, 0) + 1
+
+                if color not in card_counts:
+                    card_counts[color] = 0
+
+                card_counts[color] += 1
                 
             for color, count in card_counts.items():
                 self.hand_text.insert(tk.END, f"- {color}: {count}\n")

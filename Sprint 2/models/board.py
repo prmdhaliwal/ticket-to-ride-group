@@ -11,7 +11,13 @@ class City:
         return self.name
 
     def __eq__(self, other):
-        return isinstance(other, City) and self.name == other.name
+        if other is None:
+            return False
+
+        if self.name == other.name:
+            return True
+
+        return False
 
     def __hash__(self):
         return hash(self.name)
@@ -50,13 +56,17 @@ class Route:
             return False
 
         if self.colour == CardColor.GRAY:
-            colours_used = set()
+            colours_used = []
 
             for card in cards:
                 if card.colour != CardColor.LOCOMOTIVE:
-                    colours_used.add(card.colour)
+                    if card.colour not in colours_used:
+                        colours_used.append(card.colour)
 
-            return len(colours_used) <= 1
+            if len(colours_used) <= 1:
+                return True
+
+            return False
 
         for card in cards:
             if not card.matches(self.colour):
@@ -65,7 +75,10 @@ class Route:
         return True
 
     def points(self, score_table):
-        return score_table.get(self.length, 0)
+        if self.length in score_table:
+            return score_table[self.length]
+
+        return 0
 
 
 class BoardMap:

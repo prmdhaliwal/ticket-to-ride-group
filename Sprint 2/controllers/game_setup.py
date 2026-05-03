@@ -30,35 +30,48 @@ class GameSetup:
         return TurnManager(players, board, transport_deck, ticket_deck, face_up_pool)
 
     def create_players(self, names, map_def):
-        return [Player(name, trains_left=map_def.initial_train_pieces) for name in names]
+        players = []
+
+        for name in names:
+            player = Player(name, trains_left=map_def.initial_train_pieces)
+            players.append(player)
+
+        return players
 
     def create_board(self, map_def):
         return BoardMap(map_def)
 
     def deal_starting_cards(self, players, deck):
         for player in players:
-            for _ in range(4):
+            for _ in range(2):
                 card = deck.draw_blind()
                 if card:
                     player.take_train_card(card)
 
     def deal_starting_tickets(self, players, deck):
         for player in players:
-            # Draw 3 tickets. (The UI will later handle discarding unwanted ones).
-            dealt = deck.draw_three()
+            dealt = deck.draw_two()
             player.take_tickets(dealt)
 
     def _build_transport_deck(self):
-        """Creates the 68 cards for the London edition."""
+        """Creates the 44 cards for the London edition."""
         cards = []
-        # Note: We use PURPLE instead of PINK to match your core.py
-        colors = [CardColor.BLUE, CardColor.BLACK, CardColor.PURPLE, 
-                  CardColor.YELLOW, CardColor.ORANGE, CardColor.WHITE]
+        colors = [
+            CardColor.BLUE,
+            CardColor.GREEN,
+            CardColor.BLACK,
+            CardColor.PINK,
+            CardColor.YELLOW,
+            CardColor.ORANGE
+        ]
+
         for color in colors:
-            for _ in range(10):
+            for _ in range(6):
                 cards.append(ColouredCarCard(color))
+
         for _ in range(8):
             cards.append(LocomotiveCard())
+
         return TrainCarCardDeck(cards)
 
     def _build_ticket_deck(self, map_def):

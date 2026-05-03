@@ -61,15 +61,32 @@ class MapDefinition:
             "Piccadilly Circus", "St. Paul's", "Westminster", "Spitalfields", "British Museum", 
             "Trafalgar Square", "Camden", "Soho", "Shoreditch", "Kensington", "South Bank", 
             "Mayfair", "The Shard", "Marylebone", "Borough Market", "The Gherkin", 
-            "Fleet Street", "Knightsbridge", "Bank", "Greenwich", "St Pancras"
+            "Fleet Street", "Knightsbridge", "Bank", "Greenwich", "St Pancras",
+            "Buckingham Palace"
         ]
         for city in cities:
             london.add_city(city)
         
         # Example routes
         london.add_route("Hyde Park", "Covent Garden", CardColor.BLACK, 2)
-        london.add_route("Covent Garden", "Tower of London", CardColor.PURPLE, 3) # Changed from PINK to PURPLE
+        london.add_route("Covent Garden", "Tower of London", CardColor.PINK, 3)
         london.add_route("Covent Garden", "Waterloo", CardColor.YELLOW, 1)
+        london.add_route("Buckingham Palace", "Big Ben", CardColor.GRAY, 1)
+        london.add_route("Big Ben", "Trafalgar Square", CardColor.BLUE, 1)
+        london.add_route("Trafalgar Square", "Piccadilly Circus", CardColor.GREEN, 1)
+        london.add_route("Covent Garden", "British Museum", CardColor.ORANGE, 1)
+
+        london.add_district(
+            "District 1",
+            ["Covent Garden", "British Museum"],
+            1
+        )
+
+        london.add_district(
+            "District 2",
+            ["Buckingham Palace", "Big Ben", "Trafalgar Square", "Piccadilly Circus"],
+            2
+        )
         
         # Complete Destination Ticket deck
         tickets_data = [

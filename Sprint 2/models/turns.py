@@ -1,6 +1,5 @@
 """Turn flow classes."""
 
-from models.cards import LocomotiveCard
 from models.decks import FaceUpPool
 from models.decks import TrainCarCardDeck
 from models.cards import TrainCar
@@ -99,7 +98,11 @@ class TurnManager(Subject):
             return self.cards_for_gray_route(player, route)
 
         matching_cards = player.matching_cards(route.colour)
-        cards_to_use = matching_cards[:route.length]
+        cards_to_use = []
+
+        for card in matching_cards:
+            if len(cards_to_use) < route.length:
+                cards_to_use.append(card)
 
         if route.can_accept(cards_to_use):
             return cards_to_use
@@ -111,18 +114,34 @@ class TurnManager(Subject):
         cards_by_colour = {}
 
         for card in player.train_cards:
-            if isinstance(card, LocomotiveCard):
+            if card.colour == CardColor.LOCOMOTIVE:
                 wild_cards.append(card)
             else:
-                cards_by_colour.setdefault(card.colour, []).append(card)
+                if card.colour not in cards_by_colour:
+                    cards_by_colour[card.colour] = []
 
-        for colour_cards in cards_by_colour.values():
-            cards_to_use = (colour_cards + wild_cards)[:route.length]
+                cards_by_colour[card.colour].append(card)
+
+        for colour in cards_by_colour:
+            cards_to_use = []
+
+            for card in cards_by_colour[colour]:
+                if len(cards_to_use) < route.length:
+                    cards_to_use.append(card)
+
+            for card in wild_cards:
+                if len(cards_to_use) < route.length:
+                    cards_to_use.append(card)
 
             if route.can_accept(cards_to_use):
                 return cards_to_use
 
-        cards_to_use = wild_cards[:route.length]
+        cards_to_use = []
+
+        for card in wild_cards:
+            if len(cards_to_use) < route.length:
+                cards_to_use.append(card)
+
         if route.can_accept(cards_to_use):
             return cards_to_use
 
@@ -191,14 +210,19 @@ class TurnManager(Subject):
             
         # Turn ends if player has drawn two train cards or one face-up locomotive.
         if last_action == "train_card_drawn":
-            drawn_cards = [a for a in self.actions_taken if a[0] == "train_card_drawn"]
+            drawn_cards = []
+
+            for action in self.actions_taken:
+                if action[0] == "train_card_drawn":
+                    drawn_cards.append(action)
+
             if len(drawn_cards) >= 2:
                 return True
                 
             if len(drawn_cards) == 1:
                 card = drawn_cards[0][1]
                 source = drawn_cards[0][2]
-                if isinstance(card, LocomotiveCard) and source == "face_up":
+                if card.colour == CardColor.LOCOMOTIVE and source == "face_up":
                     return True
                     
         return False
@@ -214,14 +238,19 @@ class TurnManager(Subject):
             if self.actions_taken[0][0] != "train_card_drawn":
                 return False, "You have already taken a different action this turn."
                 
-            drawn_cards = [a for a in self.actions_taken if a[0] == "train_card_drawn"]
+            drawn_cards = []
+
+            for action in self.actions_taken:
+                if action[0] == "train_card_drawn":
+                    drawn_cards.append(action)
+
             if len(drawn_cards) >= 2:
                 return False, "Turn over."
                 
             if len(drawn_cards) == 1:
                 card = drawn_cards[0][1]
                 source = drawn_cards[0][2]
-                if isinstance(card, LocomotiveCard) and source == "face_up":
+                if card.colour == CardColor.LOCOMOTIVE and source == "face_up":
                     return False, "Turn over."
         
         current_player = self.get_current_player()
@@ -243,7 +272,7 @@ class TurnManager(Subject):
             pool_card = self.face_up_pool.face_up_cards[pool_index]
             
             # Prevent drawing a face-up locomotive as the second card.
-            if isinstance(pool_card, LocomotiveCard):
+            if pool_card.colour == CardColor.LOCOMOTIVE:
                 if len(self.actions_taken) == 1:
                     return False, "Cannot draw a face-up Locomotive as your second card."
             
@@ -257,7 +286,7 @@ class TurnManager(Subject):
             return True, "Face-up card drawn."
     
     def draw_destination_tickets(self):
-        """Draws three destination tickets for the player to choose from."""
+        """Draws two destination tickets for the player to choose from."""
         # Stop action if the game is already over.
         if self.end_game_tracker.game_over():
             return False, "The game is over."
@@ -266,8 +295,8 @@ class TurnManager(Subject):
         if self.actions_taken:
             return False, "Turn over or another action taken."
         
-        # Draw up to three tickets from the deck.
-        tickets = self.ticket_deck.draw_three()
+        # Draw up to two tickets from the deck.
+        tickets = self.ticket_deck.draw_two()
         if not tickets:
             return False, "No tickets left."
             

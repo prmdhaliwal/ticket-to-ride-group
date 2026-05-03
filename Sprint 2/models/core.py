@@ -11,6 +11,7 @@ class CardColor(Enum):
     BLACK = "Black"
     WHITE = "White"
     ORANGE = "Orange"
+    PINK = "Pink"
     PURPLE = "Purple"
     GRAY = "Gray"
     LOCOMOTIVE = "Locomotive"

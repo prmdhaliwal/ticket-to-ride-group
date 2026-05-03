@@ -47,19 +47,20 @@ class GameSetup:
 
     def create_train_deck(self):
         cards = []
-        # Standard 8 colors
         colors = [
-            CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW, 
-            CardColor.BLACK, CardColor.WHITE, CardColor.ORANGE, CardColor.PURPLE
+            CardColor.BLUE,
+            CardColor.GREEN,
+            CardColor.BLACK,
+            CardColor.PINK,
+            CardColor.YELLOW,
+            CardColor.ORANGE
         ]
         
-        # 12 cards of each color
         for color in colors:
-            for _ in range(12):
+            for _ in range(6):
                 cards.append(ColouredCarCard(color))
                 
-        # 14 Multi-colored Locomotive Wildcards
-        for _ in range(14):
+        for _ in range(8):
             cards.append(LocomotiveCard())
             
         return TrainCarCardDeck(cards)
@@ -72,15 +73,13 @@ class GameSetup:
         return DestinationTicketDeck(tickets)
 
     def deal_starting_cards(self, players, deck):
-        # 4 cards per player
         for player in players:
-            for _ in range(4):
+            for _ in range(2):
                 card = deck.draw_blind()
                 if card:
                     player.take_train_card(card)
 
     def deal_starting_tickets(self, players, deck):
-        # Deal 3 tickets to each player initially
         for player in players:
-            drawn_tickets = deck.draw_three()
+            drawn_tickets = deck.draw_two()
             player.take_tickets(drawn_tickets)
