@@ -2,8 +2,9 @@ import sys
 import unittest
 from collections import Counter
 from pathlib import Path
-
-
+"""
+AI was used explicity to generate content in these tests but tests were thought of independently for london functionality
+"""
 SPRINT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SPRINT_DIR))
 
