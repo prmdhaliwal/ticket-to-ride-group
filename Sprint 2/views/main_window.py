@@ -1,6 +1,7 @@
 """Main Tkinter window."""
 import math
 import tkinter as tk
+import sv_ttk
 from tkinter import ttk, messagebox
 from models.core import Observer
 from models.core import CardColor
@@ -15,7 +16,7 @@ class MainWindow(Observer):
         self.selected_pool_index = None
         
         self.root.title("Ticket to Ride - London")
-        self.root.geometry("1280x720")
+        self.root.geometry("1280x800")
         
         self.map_background_loaded = False
         self.map_background_image = None
@@ -844,6 +845,8 @@ class MainWindow(Observer):
             command=confirm,
             style="Accent.TButton"
         ).pack(pady=(15, 20), padx=20)
+
+        sv_ttk.set_theme("light")
 
         self.root.wait_window(top)
 
