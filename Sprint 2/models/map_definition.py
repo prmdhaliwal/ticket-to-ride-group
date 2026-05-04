@@ -18,7 +18,6 @@ class MapDefinition:
         self.city_positions = {}
         self.routes = []
         self.tickets = []
-        self.districts = []
         self.layout_size = None
         
         # Scoring table specific to the London map
@@ -62,13 +61,6 @@ class MapDefinition:
             "points": points
         })
 
-    def add_district(self, district_name, locations, points):
-        self.districts.append({
-            "name": district_name,
-            "locations": locations,
-            "points": points
-        })
-
     @classmethod
     def create_london_map(cls):
         # Initializing London with 17 initial train pieces per UML/London rules
@@ -94,36 +86,6 @@ class MapDefinition:
             london.add_route("Big Ben", "Trafalgar Square", CardColor.BLUE, 1)
             london.add_route("Trafalgar Square", "Piccadilly Circus", CardColor.GREEN, 1)
             london.add_route("Covent Garden", "British Museum", CardColor.ORANGE, 1)
-
-        london.add_district(
-            "District 1",
-            ["Covent Garden", "British Museum"],
-            1
-        )
-
-        london.add_district(
-            "District 2",
-            ["Buckingham Palace", "Big Ben", "Trafalgar Square", "Piccadilly Circus"],
-            2
-        )
-
-        london.add_district(
-            "District 3",
-            ["Waterloo", "Globe Theatre", "Elephant & Castle"],
-            3
-        )
-
-        london.add_district(
-            "District 4",
-            ["The Charterhouse", "St. Paul's", "Tower of London", "Brick Lane"],
-            4
-        )
-
-        london.add_district(
-            "District 5",
-            ["Regent's Park", "Baker Street", "Hyde Park", "King's Cross"],
-            5
-        )
         
         # London Destination Ticket deck
         tickets_data = [

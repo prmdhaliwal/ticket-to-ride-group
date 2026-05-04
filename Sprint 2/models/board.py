@@ -90,12 +90,10 @@ class BoardMap:
         self.cities = {}
         self.routes = []
         self.route_scores = {}
-        self.districts = []
         self.layout_size = None
 
         if map_definition is not None:
             self.route_scores = getattr(map_definition, "route_scores", {}).copy()
-            self.districts = getattr(map_definition, "districts", []).copy()
             self.layout_size = getattr(map_definition, "layout_size", None)
             city_positions = getattr(map_definition, "city_positions", {})
 

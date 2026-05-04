@@ -10,11 +10,13 @@ sys.path.insert(0, str(SPRINT_DIR))
 
 from controllers.game_controller import GameController
 from controllers.game_setup import GameSetup as ControllerGameSetup
+from models.board import BoardMap
 from models.cards import ColouredCarCard, LocomotiveCard
 from models.core import CardColor
 from models.decks import DestinationTicketDeck, FaceUpPool, TrainCarCardDeck
 from models.map_definition import MapDefinition
 from models.player import Player
+from models.scoring import StandardScoring
 from models.setup import GameSetup
 from models.tickets import DestinationTicket
 from models.turns import TurnManager
@@ -53,7 +55,7 @@ class LondonRulesTest(unittest.TestCase):
         self.assertEqual(0, counts[CardColor.RED])
         self.assertEqual(0, counts[CardColor.WHITE])
 
-    def test_setup_deals_two_transport_cards_and_two_tickets(self):
+    def test_setup_deals_two_transport_cards_and_two_starting_ticket_choices(self):
         turn_manager, train_deck, ticket_deck, face_up_pool = GameSetup().set_up_game(
             self.make_small_map(),
             ["Alice", "Bob"]
@@ -61,7 +63,8 @@ class LondonRulesTest(unittest.TestCase):
 
         for player in turn_manager.players:
             self.assertEqual(2, len(player.train_cards))
-            self.assertEqual(2, len(player.destination_tickets))
+            self.assertEqual(0, len(player.destination_tickets))
+            self.assertEqual(2, len(player.starting_ticket_choices))
 
     def test_controller_setup_uses_london_setup_rules(self):
         turn_manager = ControllerGameSetup().set_up_game(
@@ -71,22 +74,147 @@ class LondonRulesTest(unittest.TestCase):
 
         for player in turn_manager.players:
             self.assertEqual(2, len(player.train_cards))
-            self.assertEqual(2, len(player.destination_tickets))
+            self.assertEqual(0, len(player.destination_tickets))
+            self.assertEqual(2, len(player.starting_ticket_choices))
+
+    def test_backend_setup_rejects_invalid_player_counts(self):
+        map_definition = self.make_small_map()
+
+        with self.assertRaises(ValueError):
+            GameSetup().set_up_game(map_definition, ["Alice"])
+
+        with self.assertRaises(ValueError):
+            GameSetup().set_up_game(
+                map_definition,
+                ["Alice", "Bob", "Cara", "Dan", "Eli"]
+            )
+
+        with self.assertRaises(ValueError):
+            ControllerGameSetup().set_up_game(map_definition, ["Alice"])
+
+        with self.assertRaises(ValueError):
+            ControllerGameSetup().set_up_game(
+                map_definition,
+                ["Alice", "Bob", "Cara", "Dan", "Eli"]
+            )
+
+    def test_starting_ticket_choice_keeps_one_and_returns_one(self):
+        turn_manager, train_deck, ticket_deck, face_up_pool = GameSetup().set_up_game(
+            self.make_small_map(),
+            ["Alice", "Bob"]
+        )
+
+        player = turn_manager.players[0]
+        choices = player.starting_ticket_choices
+        starting_deck_count = len(ticket_deck.tickets)
+
+        ok, message = turn_manager.choose_starting_tickets(
+            player,
+            [choices[0]],
+            [choices[1]]
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(1, len(player.destination_tickets))
+        self.assertEqual(0, len(player.starting_ticket_choices))
+        self.assertIn(choices[1], ticket_deck.tickets)
+        self.assertEqual(starting_deck_count + 1, len(ticket_deck.tickets))
 
     def test_london_map_contains_district_data(self):
         london = MapDefinition.create_london_map()
 
         self.assertIn("Buckingham Palace", london.cities)
 
-        district_found = False
+        expected_districts = {
+            "District 1": (["Covent Garden", "British Museum"], 1),
+            "District 2": (["Buckingham Palace", "Big Ben", "Trafalgar Square", "Piccadilly Circus"], 2),
+            "District 3": (["Waterloo", "Globe Theatre", "Elephant & Castle"], 3),
+            "District 4": (["The Charterhouse", "St. Paul's", "Tower of London", "Brick Lane"], 4),
+            "District 5": (["Regent's Park", "Baker Street", "Hyde Park", "King's Cross"], 5)
+        }
+
+        actual_districts = {}
 
         for district in london.districts:
-            if district["name"] == "District 2":
-                if "Buckingham Palace" in district["locations"]:
-                    if district["points"] == 2:
-                        district_found = True
+            actual_districts[district["name"]] = (
+                district["locations"],
+                district["points"]
+            )
 
-        self.assertTrue(district_found)
+        self.assertEqual(expected_districts, actual_districts)
+
+    def test_london_destination_tickets_use_london_locations(self):
+        london = MapDefinition.create_london_map()
+        actual_tickets = []
+
+        for ticket in london.tickets:
+            actual_tickets.append((
+                ticket["start"],
+                ticket["end"],
+                ticket["points"]
+            ))
+
+        expected_tickets = [
+            ("British Museum", "Piccadilly Circus", 2),
+            ("Piccadilly Circus", "Waterloo", 3),
+            ("Hyde Park", "Covent Garden", 3),
+            ("Trafalgar Square", "Globe Theatre", 4),
+            ("British Museum", "St. Paul's", 4),
+            ("British Museum", "Waterloo", 4),
+            ("Trafalgar Square", "St. Paul's", 4),
+            ("Brick Lane", "Globe Theatre", 4),
+            ("The Charterhouse", "Big Ben", 5),
+            ("Baker Street", "Trafalgar Square", 5),
+            ("Buckingham Palace", "Elephant & Castle", 5),
+            ("Regent's Park", "Piccadilly Circus", 5),
+            ("King's Cross", "Buckingham Palace", 6),
+            ("Hyde Park", "St. Paul's", 6),
+            ("Big Ben", "Tower of London", 6),
+            ("King's Cross", "Tower of London", 7),
+            ("Trafalgar Square", "Tower of London", 7),
+            ("Buckingham Palace", "Brick Lane", 9),
+            ("Regent's Park", "Elephant & Castle", 9),
+            ("Baker Street", "Tower of London", 11)
+        ]
+
+        self.assertEqual(20, len(actual_tickets))
+        self.assertEqual(set(expected_tickets), set(actual_tickets))
+        self.assertNotIn(("Trafalgar Square", "Camden", 4), actual_tickets)
+        self.assertNotIn(("Marylebone", "Borough Market", 4), actual_tickets)
+
+    def test_london_map_uses_pink_not_purple_routes(self):
+        london = MapDefinition.create_london_map()
+        route_colours = []
+
+        for route in london.routes:
+            route_colours.append(route["color"])
+
+        self.assertIn(CardColor.PINK, route_colours)
+        self.assertNotIn(CardColor.PURPLE, route_colours)
+
+    def test_final_scoring_uses_longest_path_bonus_not_districts(self):
+        map_definition = MapDefinition("Test London", 2, 4, 17)
+
+        for city in ["A", "B", "C", "D"]:
+            map_definition.add_city(city)
+
+        map_definition.add_route("A", "B", CardColor.BLUE, 1)
+        map_definition.add_route("B", "C", CardColor.GREEN, 1)
+        map_definition.add_route("C", "D", CardColor.YELLOW, 1)
+        map_definition.add_district("District Test", ["A", "B"], 99)
+
+        board = BoardMap(map_definition)
+        alice = Player("Alice")
+        bob = Player("Bob")
+
+        board.routes[0].claim(alice)
+        board.routes[1].claim(alice)
+        board.routes[2].claim(bob)
+
+        scores = StandardScoring().final_scores([alice, bob], board)
+
+        self.assertEqual(10, scores[alice])
+        self.assertEqual(0, scores[bob])
 
     def test_face_up_pool_discards_and_replaces_three_buses(self):
         pool = FaceUpPool()
