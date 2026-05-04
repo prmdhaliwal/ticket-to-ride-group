@@ -882,27 +882,71 @@ class MainWindow(Observer):
             
         ttk.Button(top, text="Keep Selected", command=confirm, style="Accent.TButton").pack(pady=(15, 20), padx=20)
 
+    def show_game_over_popup(self, winners, scores):
+        top = tk.Toplevel(self.root)
+        top.title("Game Over!")
+        top.geometry("450x400")
+        top.transient(self.root)
+        top.grab_set()
+
+        winner_names = ", ".join(w.name for w in winners)
+
+        ttk.Label(
+            top,
+            text="Game Over!",
+            font=("Arial", 28, "bold"),
+            foreground="#c76128"
+        ).pack(pady=(30, 10))
+
+        ttk.Label(
+            top,
+            text=f"Winner: {winner_names} 🏆",
+            font=("Arial", 18, "bold")
+        ).pack(pady=(5, 30))
+
+        frame = ttk.Frame(top)
+        frame.pack(fill=tk.BOTH, expand=True, padx=50, pady=10)
+
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+        for i, (player, score) in enumerate(sorted_scores):
+            ttk.Label(
+                frame,
+                text=f"{i+1}. {player.name}",
+                font=("Arial", 16)
+            ).grid(row=i, column=0, sticky="w", pady=8)
+
+            ttk.Label(
+                frame,
+                text=f"{score} pts",
+                font=("Arial", 16, "bold")
+            ).grid(row=i, column=1, sticky="e", pady=8, padx=(40, 0))
+
+        frame.columnconfigure(0, weight=1)
+
+        ttk.Button(
+            top,
+            text="Exit Game",
+            command=self.root.destroy,
+            style="Accent.TButton"
+        ).pack(pady=30)
+
     def update(self):
         current_player = self.controller.current_player()
         
         if self.controller.game_over():
+            if getattr(self, "_game_over_shown", False):
+                return
+            self._game_over_shown = True
+
             winners = self.controller.winners()
-            winner_names = ""
-
-            for winner in winners:
-                if winner_names:
-                    winner_names += ", "
-
-                winner_names += winner.name
+            winner_names = ", ".join(w.name for w in winners)
 
             self.status_label.config(text=f"Game Over! Winners: {winner_names}")
             self.end_turn_btn.config(state=tk.DISABLED)
             
             scores = self.controller.final_scores()
-            score_text = "Final Scores:\n"
-            for p, s in scores.items():
-                score_text += f"{p.name}: {s}\n"
-            messagebox.showinfo("Game Over", score_text)
+            self.show_game_over_popup(winners, scores)
             return
             
         if current_player:
