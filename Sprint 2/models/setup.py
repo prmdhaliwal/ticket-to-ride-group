@@ -82,4 +82,4 @@ class GameSetup:
     def deal_starting_tickets(self, players, deck):
         for player in players:
             drawn_tickets = deck.draw_two()
-            player.take_tickets(drawn_tickets)
+            player.starting_ticket_choices = drawn_tickets

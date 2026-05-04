@@ -53,6 +53,28 @@ class GameController:
 
         return self.turn_manager.get_current_player()
 
+    def starting_ticket_choices(self):
+        choices = []
+
+        if self.turn_manager is None:
+            return choices
+
+        for player in self.turn_manager.players:
+            if player.starting_ticket_choices:
+                choices.append((player, player.starting_ticket_choices))
+
+        return choices
+
+    def choose_starting_tickets(self, player, kept_tickets, returned_tickets):
+        if self.turn_manager is None:
+            return False, "Game has not been set up."
+
+        return self.turn_manager.choose_starting_tickets(
+            player,
+            kept_tickets,
+            returned_tickets
+        )
+
     def game_over(self):
         # stop actions after the game ends
         if self.turn_manager is None:

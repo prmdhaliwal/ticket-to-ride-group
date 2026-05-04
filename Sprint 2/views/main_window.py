@@ -18,6 +18,7 @@ class MainWindow(Observer):
         self.root.geometry("1280x720")
         
         self.setup_ui()
+        self.show_starting_ticket_choices()
         self.update()
 
     def setup_ui(self):
@@ -788,6 +789,65 @@ class MainWindow(Observer):
             return
 
         self.show_ticket_selection(result)
+
+    def show_starting_ticket_choices(self):
+        choices = self.controller.starting_ticket_choices()
+
+        for player, tickets in choices:
+            self.show_starting_ticket_selection(player, tickets)
+
+    def show_starting_ticket_selection(self, player, tickets):
+        top = tk.Toplevel(self.root)
+        top.title("Starting Tickets")
+        top.protocol("WM_DELETE_WINDOW", lambda: None)
+        top.transient(self.root)
+        top.grab_set()
+
+        ttk.Label(
+            top,
+            text=f"{player.name}, choose starting tickets to keep:"
+        ).pack(pady=(15, 10), padx=20)
+
+        check_frame = ttk.Frame(top)
+        check_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+
+        ticket_vars = []
+        for ticket in tickets:
+            var = tk.BooleanVar(value=True)
+            text = f"{ticket.from_city} to {ticket.to_city} ({ticket.points})"
+            cb = ttk.Checkbutton(check_frame, text=text, variable=var)
+            cb.pack(anchor=tk.W, pady=2)
+            ticket_vars.append(var)
+
+        def confirm():
+            kept = []
+            returned = []
+
+            for index, var in enumerate(ticket_vars):
+                if var.get():
+                    kept.append(tickets[index])
+                else:
+                    returned.append(tickets[index])
+
+            success, msg = self.controller.choose_starting_tickets(
+                player,
+                kept,
+                returned
+            )
+
+            if not success:
+                messagebox.showerror("Error", msg)
+            else:
+                top.destroy()
+
+        ttk.Button(
+            top,
+            text="Keep Selected",
+            command=confirm,
+            style="Accent.TButton"
+        ).pack(pady=(15, 20), padx=20)
+
+        self.root.wait_window(top)
 
     def show_ticket_selection(self, tickets):
         top = tk.Toplevel(self.root)

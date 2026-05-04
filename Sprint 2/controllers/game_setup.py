@@ -51,7 +51,7 @@ class GameSetup:
     def deal_starting_tickets(self, players, deck):
         for player in players:
             dealt = deck.draw_two()
-            player.take_tickets(dealt)
+            player.starting_ticket_choices = dealt
 
     def _build_transport_deck(self):
         """Creates the 44 cards for the London edition."""
