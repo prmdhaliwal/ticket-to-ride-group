@@ -1,7 +1,5 @@
 """Main Tkinter window."""
 import math
-import os
-import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 from models.core import Observer
@@ -11,6 +9,10 @@ class MainWindow(Observer):
     def __init__(self, root, controller):
         self.root = root
         self.controller = controller
+        self.current_face_up_cards = []
+        self.current_train_cards = []
+        self.current_ticket_cards = []
+        self.selected_pool_index = None
         
         self.root.title("Ticket to Ride - London")
         self.root.geometry("1280x720")
@@ -54,8 +56,15 @@ class MainWindow(Observer):
         mid_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10))
         
         ttk.Label(mid_frame, text="Face-Up Cards").pack(anchor=tk.W, pady=(0, 5))
-        self.pool_listbox = ttk.Treeview(mid_frame, show="tree", selectmode="browse", height=5)
-        self.pool_listbox.pack(pady=(0, 10), fill=tk.X)
+        self.pool_canvas = tk.Canvas(
+            mid_frame,
+            height=135,
+            background="#f7f1df",
+            highlightthickness=0
+        )
+        self.pool_canvas.pack(pady=(0, 10), fill=tk.X)
+        self.pool_canvas.bind("<Configure>", self.handle_pool_resize)
+        self.pool_canvas.tag_bind("pool_card", "<Button-1>", self.handle_pool_card_click)
         
         self.draw_pool_btn = ttk.Button(mid_frame, text="Draw from Pool", command=self.draw_pool)
         self.draw_pool_btn.pack(pady=5, fill=tk.X)
@@ -71,12 +80,51 @@ class MainWindow(Observer):
         
         right_frame = ttk.LabelFrame(main_frame, text="Player Status", padding=10)
         right_frame.grid(row=0, column=2, sticky="nsew")
-        
-        self.hand_text = tk.Text(right_frame, width=40, state=tk.DISABLED)
-        self.hand_text.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(right_frame, text="Cards").pack(anchor=tk.W)
+        self.card_canvas = tk.Canvas(
+            right_frame,
+            height=105,
+            background="#f7f1df",
+            highlightthickness=0
+        )
+        self.card_canvas.pack(fill=tk.X)
+        self.card_canvas.bind("<Configure>", self.handle_card_resize)
+
+        ttk.Label(right_frame, text="Tickets").pack(anchor=tk.W, pady=(10, 4))
+        self.ticket_canvas = tk.Canvas(
+            right_frame,
+            height=330,
+            background="#f7f1df",
+            highlightthickness=0
+        )
+        self.ticket_canvas.pack(fill=tk.BOTH, expand=True)
+        self.ticket_canvas.bind("<Configure>", self.handle_ticket_resize)
 
     def handle_map_resize(self, event):
         self.draw_map()
+
+    def handle_pool_resize(self, event):
+        self.draw_face_up_card_boxes(self.current_face_up_cards)
+
+    def handle_card_resize(self, event):
+        self.draw_train_card_boxes(self.current_train_cards)
+
+    def handle_ticket_resize(self, event):
+        self.draw_ticket_cards(self.current_ticket_cards)
+
+    def handle_pool_card_click(self, event):
+        selected = self.pool_canvas.find_withtag("current")
+
+        if not selected:
+            return
+
+        tags = self.pool_canvas.gettags(selected[0])
+
+        for tag in tags:
+            if tag.startswith("pool_index_"):
+                self.selected_pool_index = int(tag.replace("pool_index_", ""))
+                self.draw_face_up_card_boxes(self.current_face_up_cards)
 
     def handle_route_list_selection(self, event):
         self.draw_map()
@@ -141,8 +189,6 @@ class MainWindow(Observer):
             )
             return
 
-        self.draw_map_background()
-
         selected_index = self.selected_route_index()
 
         for index, route in enumerate(routes):
@@ -180,47 +226,6 @@ class MainWindow(Observer):
             "min_y": min(y_values),
             "max_y": max(y_values)
         }
-
-    def draw_map_background(self):
-        if not self.map_background_loaded:
-            self.load_map_background()
-
-        if self.map_background_image is None:
-            return
-
-        width = self.route_canvas.winfo_width()
-        height = self.route_canvas.winfo_height()
-        image_width = self.map_background_image.width()
-        image_height = self.map_background_image.height()
-        x = (width - image_width) / 2
-        y = (height - image_height) / 2
-
-        self.route_canvas.create_image(
-            x,
-            y,
-            anchor=tk.NW,
-            image=self.map_background_image
-        )
-
-    def load_map_background(self):
-        self.map_background_loaded = True
-        image_path = self.map_background_path()
-
-        if not os.path.exists(image_path):
-            return
-
-        try:
-            self.map_background_image = tk.PhotoImage(file=image_path)
-        except tk.TclError:
-            self.map_background_image = None
-
-    def map_background_path(self):
-        if hasattr(sys, "_MEIPASS"):
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-        return os.path.join(base_path, "assets", "maps", "london_map.png")
 
     def to_canvas_point(self, x, y, bounds):
         width = self.route_canvas.winfo_width()
@@ -441,6 +446,306 @@ class MainWindow(Observer):
 
         return "#8c9299"
 
+    def draw_face_up_card_boxes(self, cards):
+        if not hasattr(self, "pool_canvas"):
+            return
+
+        self.current_face_up_cards = cards
+        self.pool_canvas.delete("all")
+
+        if self.selected_pool_index is not None:
+            if self.selected_pool_index >= len(cards):
+                self.selected_pool_index = None
+
+        if not cards:
+            self.pool_canvas.create_text(
+                12,
+                12,
+                anchor=tk.NW,
+                text="No face-up cards",
+                fill="#5d5145"
+            )
+            return
+
+        width = self.pool_canvas.winfo_width()
+        if width < 160:
+            width = 260
+
+        x = 8
+        y = 8
+        box_width = 96
+        box_height = 34
+        gap = 8
+
+        for index, card in enumerate(cards):
+            if x + box_width > width - 8:
+                x = 8
+                y += box_height + gap
+
+            self.draw_face_up_card_box(
+                x,
+                y,
+                box_width,
+                box_height,
+                card,
+                index
+            )
+            x += box_width + gap
+
+        self.pool_canvas.config(scrollregion=(0, 0, width, y + box_height + gap))
+
+    def draw_face_up_card_box(self, x, y, width, height, card, index):
+        colour = card.colour
+        fill = self.card_display_colour(colour)
+        text_colour = self.card_text_colour(colour)
+        outline = "#4a4037"
+        line_width = 2
+
+        if index == self.selected_pool_index:
+            outline = "#111111"
+            line_width = 4
+
+        label = colour.value
+        if colour == CardColor.LOCOMOTIVE:
+            label = "Bus"
+
+        tag = "pool_index_" + str(index)
+
+        self.pool_canvas.create_rectangle(
+            x,
+            y,
+            x + width,
+            y + height,
+            fill=fill,
+            outline=outline,
+            width=line_width,
+            tags=("pool_card", tag)
+        )
+        self.pool_canvas.create_text(
+            x + width / 2,
+            y + height / 2,
+            text=label,
+            fill=text_colour,
+            font=("Arial", 9, "bold"),
+            tags=("pool_card", tag)
+        )
+
+    def draw_train_card_boxes(self, cards):
+        if not hasattr(self, "card_canvas"):
+            return
+
+        self.current_train_cards = cards
+        self.card_canvas.delete("all")
+
+        card_counts = {}
+        for card in cards:
+            colour = card.colour
+
+            if colour not in card_counts:
+                card_counts[colour] = 0
+
+            card_counts[colour] += 1
+
+        if not card_counts:
+            self.card_canvas.create_text(
+                12,
+                12,
+                anchor=tk.NW,
+                text="No cards",
+                fill="#5d5145"
+            )
+            return
+
+        width = self.card_canvas.winfo_width()
+        if width < 160:
+            width = 300
+
+        colour_order = [
+            CardColor.BLUE,
+            CardColor.GREEN,
+            CardColor.YELLOW,
+            CardColor.BLACK,
+            CardColor.ORANGE,
+            CardColor.PINK,
+            CardColor.LOCOMOTIVE
+        ]
+        x = 8
+        y = 8
+        box_width = 82
+        box_height = 34
+        gap = 8
+
+        for colour in colour_order:
+            if colour in card_counts:
+                if x + box_width > width - 8:
+                    x = 8
+                    y += box_height + gap
+
+                self.draw_train_card_box(
+                    x,
+                    y,
+                    box_width,
+                    box_height,
+                    colour,
+                    card_counts[colour]
+                )
+                x += box_width + gap
+
+        self.card_canvas.config(scrollregion=(0, 0, width, y + box_height + gap))
+
+    def draw_train_card_box(self, x, y, width, height, colour, count):
+        fill = self.card_display_colour(colour)
+        text_colour = self.card_text_colour(colour)
+
+        label = colour.value
+        if colour == CardColor.LOCOMOTIVE:
+            label = "Bus"
+
+        self.card_canvas.create_rectangle(
+            x,
+            y,
+            x + width,
+            y + height,
+            fill=fill,
+            outline="#4a4037",
+            width=2
+        )
+        self.card_canvas.create_text(
+            x + width / 2,
+            y + height / 2,
+            text=f"{label} x{count}",
+            fill=text_colour,
+            font=("Arial", 9, "bold")
+        )
+
+    def card_display_colour(self, colour):
+        colours = {
+            CardColor.BLUE: "#2f6fd6",
+            CardColor.GREEN: "#228b45",
+            CardColor.YELLOW: "#e3c33c",
+            CardColor.BLACK: "#333333",
+            CardColor.ORANGE: "#d66b2f",
+            CardColor.PINK: "#d85aa6",
+            CardColor.LOCOMOTIVE: "#5d5d5d"
+        }
+
+        if colour in colours:
+            return colours[colour]
+
+        return "#8c9299"
+
+    def card_text_colour(self, colour):
+        if colour == CardColor.YELLOW:
+            return "#1f1f1f"
+
+        return "#ffffff"
+
+    def draw_ticket_cards(self, tickets):
+        if not hasattr(self, "ticket_canvas"):
+            return
+
+        self.current_ticket_cards = tickets
+        self.ticket_canvas.delete("all")
+
+        width = self.ticket_canvas.winfo_width()
+        if width < 160:
+            width = 300
+
+        if not tickets:
+            self.ticket_canvas.create_text(
+                12,
+                12,
+                anchor=tk.NW,
+                text="No tickets",
+                fill="#5d5145"
+            )
+            return
+
+        card_width = width - 20
+        if card_width > 300:
+            card_width = 300
+
+        card_height = 72
+        y = 8
+
+        for ticket in tickets:
+            self.draw_ticket_card(10, y, card_width, card_height, ticket)
+            y += card_height + 8
+
+        self.ticket_canvas.config(scrollregion=(0, 0, width, y))
+
+    def draw_ticket_card(self, x, y, width, height, ticket):
+        score_width = 38
+        score_x = x + width - score_width
+
+        self.ticket_canvas.create_rectangle(
+            x,
+            y,
+            x + width,
+            y + height,
+            fill="#fffaf0",
+            outline="#c9b48d",
+            width=2
+        )
+        self.ticket_canvas.create_rectangle(
+            score_x,
+            y,
+            x + width,
+            y + height,
+            fill="#c76128",
+            outline="#c76128"
+        )
+        self.ticket_canvas.create_text(
+            score_x + score_width / 2,
+            y + height / 2,
+            text=str(ticket.points),
+            fill="#ffffff",
+            font=("Arial", 18, "bold")
+        )
+        self.ticket_canvas.create_oval(
+            x + 14,
+            y + 18,
+            x + 24,
+            y + 28,
+            fill="#4fa85a",
+            outline="#315f35"
+        )
+        self.ticket_canvas.create_oval(
+            x + 14,
+            y + 48,
+            x + 24,
+            y + 58,
+            fill="#2f6fd6",
+            outline="#274f94"
+        )
+        self.ticket_canvas.create_line(
+            x + 19,
+            y + 28,
+            x + 19,
+            y + 48,
+            fill="#d66b2f",
+            dash=(3, 3),
+            width=2
+        )
+        self.ticket_canvas.create_text(
+            x + 34,
+            y + 13,
+            anchor=tk.NW,
+            text=ticket.from_city,
+            fill="#6b2f25",
+            font=("Arial", 9, "bold"),
+            width=width - score_width - 42
+        )
+        self.ticket_canvas.create_text(
+            x + 34,
+            y + 43,
+            anchor=tk.NW,
+            text=ticket.to_city,
+            fill="#254b75",
+            font=("Arial", 9, "bold"),
+            width=width - score_width - 42
+        )
+
     def handle_end_turn(self):
         msg = self.controller.end_turn()
         if msg not in ["Next turn.", "The game is over.", "Game over."]:
@@ -458,14 +763,18 @@ class MainWindow(Observer):
             messagebox.showerror("Error", msg)
 
     def draw_pool(self):
-        selection = self.pool_listbox.selection()
-        if not selection:
+        if self.selected_pool_index is None:
             messagebox.showwarning("Warning", "Select a face-up card.")
             return
-        index = self.pool_listbox.index(selection[0])
-        success, msg = self.controller.draw_train_card(from_deck=False, pool_index=index)
+
+        success, msg = self.controller.draw_train_card(
+            from_deck=False,
+            pool_index=self.selected_pool_index
+        )
         if not success:
             messagebox.showerror("Error", msg)
+        else:
+            self.selected_pool_index = None
 
     def draw_deck(self):
         success, msg = self.controller.draw_train_card(from_deck=True)
@@ -575,38 +884,7 @@ class MainWindow(Observer):
 
             self.draw_map()
                 
-            # Efficiently update pool
             cards = self.controller.get_face_up_cards()
-            pool_items = self.pool_listbox.get_children()
-            
-            if len(pool_items) != len(cards):
-                self.pool_listbox.delete(*pool_items)
-                for c in cards:
-                    self.pool_listbox.insert("", tk.END, text=c.colour.value)
-            else:
-                for i, c in enumerate(cards):
-                    new_text = c.colour.value
-                    if self.pool_listbox.item(pool_items[i], "text") != new_text:
-                        self.pool_listbox.item(pool_items[i], text=new_text)
-                
-            self.hand_text.config(state=tk.NORMAL)
-            self.hand_text.delete(1.0, tk.END)
-            self.hand_text.insert(tk.END, "Cards:\n")
-            
-            card_counts = {}
-            for c in current_player.train_cards:
-                color = c.colour.value
-
-                if color not in card_counts:
-                    card_counts[color] = 0
-
-                card_counts[color] += 1
-                
-            for color, count in card_counts.items():
-                self.hand_text.insert(tk.END, f"- {color}: {count}\n")
-                
-            self.hand_text.insert(tk.END, "\nTickets:\n")
-            for t in current_player.destination_tickets:
-                self.hand_text.insert(tk.END, f"- {t.from_city} to {t.to_city} ({t.points})\n")
-                
-            self.hand_text.config(state=tk.DISABLED)
+            self.draw_face_up_card_boxes(cards)
+            self.draw_train_card_boxes(current_player.train_cards)
+            self.draw_ticket_cards(current_player.destination_tickets)
