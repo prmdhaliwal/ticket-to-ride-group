@@ -106,6 +106,24 @@ class MapDefinition:
             ["Buckingham Palace", "Big Ben", "Trafalgar Square", "Piccadilly Circus"],
             2
         )
+
+        london.add_district(
+            "District 3",
+            ["Waterloo", "Globe Theatre", "Elephant & Castle"],
+            3
+        )
+
+        london.add_district(
+            "District 4",
+            ["The Charterhouse", "St. Paul's", "Tower of London", "Brick Lane"],
+            4
+        )
+
+        london.add_district(
+            "District 5",
+            ["Regent's Park", "Baker Street", "Hyde Park", "King's Cross"],
+            5
+        )
         
         # London Destination Ticket deck
         tickets_data = [
