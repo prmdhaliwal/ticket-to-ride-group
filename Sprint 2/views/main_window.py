@@ -17,6 +17,9 @@ class MainWindow(Observer):
         self.root.title("Ticket to Ride - London")
         self.root.geometry("1280x720")
         
+        self.map_background_loaded = False
+        self.map_background_image = None
+        
         self.setup_ui()
         self.show_starting_ticket_choices()
         self.update()
@@ -25,16 +28,11 @@ class MainWindow(Observer):
         self.status_label = ttk.Label(self.root, text="Loading game...", font=("Arial", 16))
         self.status_label.pack(pady=10)
         
-        main_frame = ttk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
+        main_paned.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        main_frame.columnconfigure(0, weight=2)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.columnconfigure(2, weight=1)
-        main_frame.rowconfigure(0, weight=1)
-        
-        left_frame = ttk.LabelFrame(main_frame, text="Routes", padding=10)
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left_frame = ttk.LabelFrame(main_paned, text="Routes", padding=10)
+        main_paned.add(left_frame, weight=2)
 
         self.route_canvas = tk.Canvas(
             left_frame,
@@ -53,8 +51,8 @@ class MainWindow(Observer):
         self.claim_btn = ttk.Button(left_frame, text="Claim Route", command=self.claim_route, style="Accent.TButton")
         self.claim_btn.pack(pady=5)
         
-        mid_frame = ttk.LabelFrame(main_frame, text="Actions & Cards", padding=10)
-        mid_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10))
+        mid_frame = ttk.LabelFrame(main_paned, text="Actions & Cards", padding=10)
+        main_paned.add(mid_frame, weight=1)
         
         ttk.Label(mid_frame, text="Face-Up Cards").pack(anchor=tk.W, pady=(0, 5))
         self.pool_canvas = tk.Canvas(
@@ -79,8 +77,8 @@ class MainWindow(Observer):
         self.end_turn_btn = ttk.Button(mid_frame, text="End Turn", command=self.handle_end_turn, style="Accent.TButton")
         self.end_turn_btn.pack(pady=(20, 5), fill=tk.X)
         
-        right_frame = ttk.LabelFrame(main_frame, text="Player Status", padding=10)
-        right_frame.grid(row=0, column=2, sticky="nsew")
+        right_frame = ttk.LabelFrame(main_paned, text="Player Status", padding=10)
+        main_paned.add(right_frame, weight=1)
 
         ttk.Label(right_frame, text="Cards").pack(anchor=tk.W)
         self.card_canvas = tk.Canvas(
