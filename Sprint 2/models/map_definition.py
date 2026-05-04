@@ -207,6 +207,9 @@ class MapDefinition:
             return CardColor.GRAY
 
         upper_name = colour_name.upper()
+        if upper_name == "PURPLE":
+            return CardColor.PINK
+
         if upper_name in CardColor.__members__:
             return CardColor[upper_name]
 
