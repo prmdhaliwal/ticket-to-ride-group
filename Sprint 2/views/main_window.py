@@ -1,7 +1,11 @@
 """Main Tkinter window."""
+import math
+import os
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 from models.core import Observer
+from models.core import CardColor
 
 class MainWindow(Observer):
     def __init__(self, root, controller):
@@ -28,9 +32,20 @@ class MainWindow(Observer):
         
         left_frame = ttk.LabelFrame(main_frame, text="Routes", padding=10)
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+        self.route_canvas = tk.Canvas(
+            left_frame,
+            height=430,
+            background="#f7f3e8",
+            highlightthickness=0
+        )
+        self.route_canvas.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.route_canvas.tag_bind("route", "<Button-1>", self.handle_canvas_route_click)
+        self.route_canvas.bind("<Configure>", self.handle_map_resize)
         
-        self.route_listbox = ttk.Treeview(left_frame, show="tree", selectmode="browse")
-        self.route_listbox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.route_listbox = ttk.Treeview(left_frame, show="tree", selectmode="browse", height=6)
+        self.route_listbox.pack(fill=tk.X, pady=(0, 10))
+        self.route_listbox.bind("<<TreeviewSelect>>", self.handle_route_list_selection)
         
         self.claim_btn = ttk.Button(left_frame, text="Claim Route", command=self.claim_route, style="Accent.TButton")
         self.claim_btn.pack(pady=5)
@@ -59,6 +74,372 @@ class MainWindow(Observer):
         
         self.hand_text = tk.Text(right_frame, width=40, state=tk.DISABLED)
         self.hand_text.pack(fill=tk.BOTH, expand=True)
+
+    def handle_map_resize(self, event):
+        self.draw_map()
+
+    def handle_route_list_selection(self, event):
+        self.draw_map()
+
+    def handle_canvas_route_click(self, event):
+        selected = self.route_canvas.find_withtag("current")
+
+        if not selected:
+            return
+
+        tags = self.route_canvas.gettags(selected[0])
+        route_index = None
+
+        for tag in tags:
+            if tag.startswith("route_index_"):
+                route_index = int(tag.replace("route_index_", ""))
+
+        if route_index is not None:
+            self.select_route(route_index)
+
+    def select_route(self, route_index):
+        route_items = self.route_listbox.get_children()
+
+        if route_index < 0:
+            return
+
+        if route_index >= len(route_items):
+            return
+
+        selected_item = route_items[route_index]
+        self.route_listbox.selection_set(selected_item)
+        self.route_listbox.focus(selected_item)
+        self.route_listbox.see(selected_item)
+        self.draw_map()
+
+    def selected_route_index(self):
+        selection = self.route_listbox.selection()
+
+        if not selection:
+            return None
+
+        return self.route_listbox.index(selection[0])
+
+    def draw_map(self):
+        if not hasattr(self, "route_canvas"):
+            return
+
+        routes = self.controller.get_routes()
+        self.route_canvas.delete("all")
+
+        if not routes:
+            return
+
+        bounds = self.map_bounds(routes)
+
+        if bounds is None:
+            self.route_canvas.create_text(
+                20,
+                20,
+                anchor=tk.NW,
+                text="No map coordinates found."
+            )
+            return
+
+        self.draw_map_background()
+
+        selected_index = self.selected_route_index()
+
+        for index, route in enumerate(routes):
+            self.draw_route(route, index, selected_index, bounds)
+
+        drawn_cities = []
+
+        for route in routes:
+            for city in route.cities:
+                if city.name not in drawn_cities:
+                    self.draw_city(city, bounds)
+                    drawn_cities.append(city.name)
+
+    def map_bounds(self, routes):
+        x_values = []
+        y_values = []
+
+        for route in routes:
+            for point in route.visual_points:
+                if point.get("x") is not None and point.get("y") is not None:
+                    x_values.append(point.get("x"))
+                    y_values.append(point.get("y"))
+
+            for city in route.cities:
+                if city.x is not None and city.y is not None:
+                    x_values.append(city.x)
+                    y_values.append(city.y)
+
+        if not x_values or not y_values:
+            return None
+
+        return {
+            "min_x": min(x_values),
+            "max_x": max(x_values),
+            "min_y": min(y_values),
+            "max_y": max(y_values)
+        }
+
+    def draw_map_background(self):
+        if not self.map_background_loaded:
+            self.load_map_background()
+
+        if self.map_background_image is None:
+            return
+
+        width = self.route_canvas.winfo_width()
+        height = self.route_canvas.winfo_height()
+        image_width = self.map_background_image.width()
+        image_height = self.map_background_image.height()
+        x = (width - image_width) / 2
+        y = (height - image_height) / 2
+
+        self.route_canvas.create_image(
+            x,
+            y,
+            anchor=tk.NW,
+            image=self.map_background_image
+        )
+
+    def load_map_background(self):
+        self.map_background_loaded = True
+        image_path = self.map_background_path()
+
+        if not os.path.exists(image_path):
+            return
+
+        try:
+            self.map_background_image = tk.PhotoImage(file=image_path)
+        except tk.TclError:
+            self.map_background_image = None
+
+    def map_background_path(self):
+        if hasattr(sys, "_MEIPASS"):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        return os.path.join(base_path, "assets", "maps", "london_map.png")
+
+    def to_canvas_point(self, x, y, bounds):
+        width = self.route_canvas.winfo_width()
+        height = self.route_canvas.winfo_height()
+
+        if width < 100:
+            width = 700
+
+        if height < 100:
+            height = 430
+
+        padding = 40
+        span_x = bounds["max_x"] - bounds["min_x"]
+        span_y = bounds["max_y"] - bounds["min_y"]
+
+        if span_x == 0:
+            span_x = 1
+
+        if span_y == 0:
+            span_y = 1
+
+        scale_x = (width - padding * 2) / span_x
+        scale_y = (height - padding * 2) / span_y
+        scale = min(scale_x, scale_y)
+
+        used_width = span_x * scale
+        used_height = span_y * scale
+        offset_x = (width - used_width) / 2
+        offset_y = (height - used_height) / 2
+
+        canvas_x = offset_x + (x - bounds["min_x"]) * scale
+        canvas_y = offset_y + (y - bounds["min_y"]) * scale
+
+        return canvas_x, canvas_y
+
+    def draw_route(self, route, index, selected_index, bounds):
+        canvas_points = []
+
+        if route.visual_points:
+            for point in route.visual_points:
+                x = point.get("x")
+                y = point.get("y")
+
+                if x is not None and y is not None:
+                    canvas_x, canvas_y = self.to_canvas_point(x, y, bounds)
+                    canvas_points.append(canvas_x)
+                    canvas_points.append(canvas_y)
+        else:
+            for city in route.cities:
+                if city.x is not None and city.y is not None:
+                    canvas_x, canvas_y = self.to_canvas_point(city.x, city.y, bounds)
+                    canvas_points.append(canvas_x)
+                    canvas_points.append(canvas_y)
+
+        if len(canvas_points) < 4:
+            return
+
+        colour = self.route_display_colour(route)
+        tag = "route_index_" + str(index)
+
+        self.route_canvas.create_line(
+            canvas_points,
+            fill="#d8d0c0",
+            width=5,
+            smooth=True,
+            capstyle=tk.ROUND,
+            tags=("route", tag)
+        )
+
+        if route.segment_points:
+            self.draw_route_segments(route, index, selected_index, bounds)
+        else:
+            self.draw_route_fallback_segments(route, index, selected_index, canvas_points)
+
+    def draw_route_segments(self, route, index, selected_index, bounds):
+        colour = self.route_display_colour(route)
+        outline = "#4a4037"
+        segment_width = 26
+        segment_height = 11
+
+        if index == selected_index:
+            segment_width = 30
+            segment_height = 13
+            outline = "#111111"
+
+        tag = "route_index_" + str(index)
+
+        for point in route.segment_points:
+            x = point.get("x")
+            y = point.get("y")
+            rotation = point.get("rotation")
+
+            if rotation is None:
+                rotation = 0
+
+            if x is not None and y is not None:
+                canvas_x, canvas_y = self.to_canvas_point(x, y, bounds)
+                self.draw_segment_shape(
+                    canvas_x,
+                    canvas_y,
+                    rotation,
+                    segment_width,
+                    segment_height,
+                    colour,
+                    outline,
+                    tag
+                )
+
+    def draw_route_fallback_segments(self, route, index, selected_index, canvas_points):
+        colour = self.route_display_colour(route)
+        outline = "#4a4037"
+        segment_width = 26
+        segment_height = 11
+
+        if index == selected_index:
+            segment_width = 30
+            segment_height = 13
+            outline = "#111111"
+
+        tag = "route_index_" + str(index)
+        start_x = canvas_points[0]
+        start_y = canvas_points[1]
+        end_x = canvas_points[-2]
+        end_y = canvas_points[-1]
+        rotation = math.atan2(end_y - start_y, end_x - start_x)
+
+        for segment_index in range(route.length):
+            fraction = (segment_index + 1) / (route.length + 1)
+            x = start_x + (end_x - start_x) * fraction
+            y = start_y + (end_y - start_y) * fraction
+            self.draw_segment_shape(
+                x,
+                y,
+                rotation,
+                segment_width,
+                segment_height,
+                colour,
+                outline,
+                tag
+            )
+
+    def draw_segment_shape(self, x, y, rotation, width, height, colour, outline, tag):
+        half_width = width / 2
+        half_height = height / 2
+        corners = [
+            (-half_width, -half_height),
+            (half_width, -half_height),
+            (half_width, half_height),
+            (-half_width, half_height)
+        ]
+        rotated_points = []
+
+        for corner_x, corner_y in corners:
+            rotated_x = x + corner_x * math.cos(rotation) - corner_y * math.sin(rotation)
+            rotated_y = y + corner_x * math.sin(rotation) + corner_y * math.cos(rotation)
+            rotated_points.append(rotated_x)
+            rotated_points.append(rotated_y)
+
+        self.route_canvas.create_polygon(
+            rotated_points,
+            fill=colour,
+            outline=outline,
+            width=2,
+            tags=("route", tag)
+        )
+
+    def draw_city(self, city, bounds):
+        if city.x is None or city.y is None:
+            return
+
+        x, y = self.to_canvas_point(city.x, city.y, bounds)
+        radius = 7
+
+        self.route_canvas.create_oval(
+            x - radius,
+            y - radius,
+            x + radius,
+            y + radius,
+            fill="#ffffff",
+            outline="#222222",
+            width=2
+        )
+        self.route_canvas.create_text(
+            x,
+            y - 15,
+            text=city.name,
+            font=("Arial", 8),
+            fill="#1f1f1f"
+        )
+
+    def route_display_colour(self, route):
+        if route.owner is not None:
+            players = self.controller.players()
+            player_colours = ["#1f66d1", "#c0392b", "#138a43", "#8e44ad"]
+
+            for index, player in enumerate(players):
+                if player == route.owner:
+                    return player_colours[index % len(player_colours)]
+
+            return "#2f2f2f"
+
+        colours = {
+            CardColor.BLUE: "#2f6fd6",
+            CardColor.GREEN: "#228b45",
+            CardColor.YELLOW: "#d9a521",
+            CardColor.BLACK: "#333333",
+            CardColor.ORANGE: "#d66b2f",
+            CardColor.PINK: "#d85aa6",
+            CardColor.RED: "#c94b4b",
+            CardColor.WHITE: "#e8e8e8",
+            CardColor.PURPLE: "#8056c9",
+            CardColor.GRAY: "#8c9299",
+            CardColor.LOCOMOTIVE: "#5d5d5d"
+        }
+
+        if route.colour in colours:
+            return colours[route.colour]
+
+        return "#8c9299"
 
     def handle_end_turn(self):
         msg = self.controller.end_turn()
@@ -191,6 +572,8 @@ class MainWindow(Observer):
                     new_text = f"{r.city_a.name} - {r.city_b.name} ({r.length} {r.colour.value}) Owner: {owner_name}"
                     if self.route_listbox.item(route_items[i], "text") != new_text:
                         self.route_listbox.item(route_items[i], text=new_text)
+
+            self.draw_map()
                 
             # Efficiently update pool
             cards = self.controller.get_face_up_cards()
