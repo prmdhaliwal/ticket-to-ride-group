@@ -11,6 +11,8 @@ from models.turns import TurnManager
 
 class GameSetup:
     def set_up_game(self, map_definition, player_names):
+        self.validate_player_count(map_definition, player_names)
+
         # 1. Create the Board
         board = self.create_board(map_definition)
         
@@ -34,6 +36,16 @@ class GameSetup:
         
         # Return all necessary state to the GameController
         return turn_manager, train_deck, ticket_deck, face_up_pool
+
+    def validate_player_count(self, map_definition, player_names):
+        player_count = len(player_names)
+
+        if player_count < map_definition.min_players or player_count > map_definition.max_players:
+            message = (
+                f"{map_definition.map_name} requires "
+                f"{map_definition.min_players}-{map_definition.max_players} players."
+            )
+            raise ValueError(message)
 
     def create_board(self, map_definition):
         return BoardMap(map_definition)
@@ -82,4 +94,4 @@ class GameSetup:
     def deal_starting_tickets(self, players, deck):
         for player in players:
             drawn_tickets = deck.draw_two()
-            player.take_tickets(drawn_tickets)
+            player.starting_ticket_choices = drawn_tickets

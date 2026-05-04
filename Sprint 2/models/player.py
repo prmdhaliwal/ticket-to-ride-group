@@ -18,6 +18,7 @@ class Player:
         self.trains_left = trains_left
         self.score = 0  # Added this so your teammate's scoring logic works
         self.destination_tickets = []
+        self.starting_ticket_choices = []
         self.marker = ScoringMarker()
 
     def matching_cards(self, route_colour):

@@ -13,6 +13,8 @@ class GameSetup:
     """Responsible for bootstrapping the game state from a MapDefinition."""
     
     def set_up_game(self, map_def, player_names):
+        self.validate_player_count(map_def, player_names)
+
         board = self.create_board(map_def)
         players = self.create_players(player_names, map_def)
         
@@ -28,6 +30,16 @@ class GameSetup:
         face_up_pool.refresh(transport_deck)
         
         return TurnManager(players, board, transport_deck, ticket_deck, face_up_pool)
+
+    def validate_player_count(self, map_def, player_names):
+        player_count = len(player_names)
+
+        if player_count < map_def.min_players or player_count > map_def.max_players:
+            message = (
+                f"{map_def.map_name} requires "
+                f"{map_def.min_players}-{map_def.max_players} players."
+            )
+            raise ValueError(message)
 
     def create_players(self, names, map_def):
         players = []
@@ -51,7 +63,7 @@ class GameSetup:
     def deal_starting_tickets(self, players, deck):
         for player in players:
             dealt = deck.draw_two()
-            player.take_tickets(dealt)
+            player.starting_ticket_choices = dealt
 
     def _build_transport_deck(self):
         """Creates the 44 cards for the London edition."""

@@ -4,8 +4,10 @@ from models.core import CardColor
 
 
 class City:
-    def __init__(self, name):
+    def __init__(self, name, x=None, y=None):
         self.name = name
+        self.x = x
+        self.y = y
 
     def __str__(self):
         return self.name
@@ -34,6 +36,8 @@ class Route:
         self.owner = None
         self.placed_trains = []
         self.twin_route = None
+        self.visual_points = []
+        self.segment_points = []
 
     def claim(self, player):
         self.owner = player
@@ -86,14 +90,20 @@ class BoardMap:
         self.cities = {}
         self.routes = []
         self.route_scores = {}
-        self.districts = []
+        self.layout_size = None
 
         if map_definition is not None:
             self.route_scores = getattr(map_definition, "route_scores", {}).copy()
-            self.districts = getattr(map_definition, "districts", []).copy()
+            self.layout_size = getattr(map_definition, "layout_size", None)
+            city_positions = getattr(map_definition, "city_positions", {})
 
             for name in map_definition.cities:
-                self.cities[name] = City(name)
+                position = city_positions.get(name)
+
+                if position is None:
+                    self.cities[name] = City(name)
+                else:
+                    self.cities[name] = City(name, position.get("x"), position.get("y"))
 
             route_pairs = {}
 
@@ -101,6 +111,8 @@ class BoardMap:
                 c1 = self.cities[route_data["start"]]
                 c2 = self.cities[route_data["end"]]
                 route = Route(c1, c2, route_data["color"], route_data["length"])
+                route.visual_points = route_data.get("points", [])
+                route.segment_points = route_data.get("segment_points", [])
                 self.routes.append(route)
 
                 pair_key = tuple(sorted([c1.name, c2.name]))

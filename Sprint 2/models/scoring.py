@@ -10,8 +10,11 @@ class ScoringStrategy:
 
 
 class StandardScoring(ScoringStrategy):
+    LONGEST_PATH_BONUS = 10
+
     def final_scores(self, players, board):
         scores = {}
+        longest_path_players = self.longest_path_players(players, board)
 
         for player in players:
             total = player.score
@@ -22,7 +25,8 @@ class StandardScoring(ScoringStrategy):
                 else:
                     total -= ticket.value()
 
-            total += self.district_score(player, board)
+            if player in longest_path_players:
+                total += self.LONGEST_PATH_BONUS
 
             scores[player] = total
 
@@ -63,6 +67,72 @@ class StandardScoring(ScoringStrategy):
                 tied.append(player)
 
         return tied
+
+    def longest_path_players(self, players, board):
+        winners = []
+        best_length = 0
+
+        for player in players:
+            length = self.longest_path_length(player, board)
+
+            if length > best_length:
+                best_length = length
+                winners = []
+                winners.append(player)
+            elif length == best_length and length > 0:
+                winners.append(player)
+
+        return winners
+
+    def longest_path_length(self, player, board):
+        claimed_routes = board.claimed_routes(player)
+        cities = []
+        best_length = 0
+
+        for route in claimed_routes:
+            if route.city_a not in cities:
+                cities.append(route.city_a)
+
+            if route.city_b not in cities:
+                cities.append(route.city_b)
+
+        for city in cities:
+            length = self.longest_path_from_city(city, claimed_routes, [])
+
+            if length > best_length:
+                best_length = length
+
+        return best_length
+
+    def longest_path_from_city(self, city, routes, used_routes):
+        best_length = 0
+
+        for route in routes:
+            if route in used_routes:
+                continue
+
+            next_city = None
+
+            if route.city_a == city:
+                next_city = route.city_b
+
+            if route.city_b == city:
+                next_city = route.city_a
+
+            if next_city is not None:
+                new_used_routes = used_routes.copy()
+                new_used_routes.append(route)
+
+                length = route.length + self.longest_path_from_city(
+                    next_city,
+                    routes,
+                    new_used_routes
+                )
+
+                if length > best_length:
+                    best_length = length
+
+        return best_length
     
     def completed_ticket_count(self, player, board):
         # count tickets where both cities are connected
@@ -73,60 +143,3 @@ class StandardScoring(ScoringStrategy):
                 completed += 1
 
         return completed
-
-    def district_score(self, player, board):
-        total = 0
-
-        for district in board.districts:
-            if self.district_complete(player, board, district):
-                total += district["points"]
-
-        return total
-
-    def completed_districts(self, player, board):
-        completed = []
-
-        for district in board.districts:
-            if self.district_complete(player, board, district):
-                completed.append(district["name"])
-
-        return completed
-
-    def district_complete(self, player, board, district):
-        locations = district["locations"]
-
-        if not locations:
-            return False
-
-        for start in locations:
-            for end in locations:
-                if start != end and not self.cities_connected(start, end, player, board):
-                    return False
-
-        return True
-
-    def cities_connected(self, start_city, target_city, player, board):
-        start = self.city_name(start_city)
-        target = self.city_name(target_city)
-        connected = [start]
-        changed = True
-
-        while changed:
-            changed = False
-
-            for route in board.claimed_routes(player):
-                city_a = self.city_name(route.city_a)
-                city_b = self.city_name(route.city_b)
-
-                if city_a in connected and city_b not in connected:
-                    connected.append(city_b)
-                    changed = True
-
-                if city_b in connected and city_a not in connected:
-                    connected.append(city_a)
-                    changed = True
-
-        return target in connected
-
-    def city_name(self, city):
-        return getattr(city, "name", city)

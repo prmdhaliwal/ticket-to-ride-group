@@ -54,9 +54,43 @@ class TurnManager(Subject):
     def get_current_player(self):
         return self.players[self.current_player_index]
 
+    def starting_tickets_chosen(self):
+        for player in self.players:
+            if player.starting_ticket_choices:
+                return False
+
+        return True
+
+    def choose_starting_tickets(self, player, kept_tickets, returned_tickets):
+        choices = player.starting_ticket_choices
+
+        if not choices:
+            return False, "No starting tickets to choose."
+
+        if len(kept_tickets) < 1:
+            return False, "You must keep at least one ticket."
+
+        selected_tickets = kept_tickets + returned_tickets
+
+        if len(selected_tickets) != len(choices):
+            return False, "Choose what to do with each starting ticket."
+
+        for ticket in selected_tickets:
+            if ticket not in choices:
+                return False, "Invalid starting ticket selection."
+
+        player.take_tickets(kept_tickets)
+        self.ticket_deck.return_tickets(returned_tickets)
+        player.starting_ticket_choices = []
+        self.notify()
+        return True, "Starting tickets chosen."
+
     def claim_route(self, route):
         if self.end_game_tracker.game_over():
             return False, "The game is over."
+
+        if not self.starting_tickets_chosen():
+            return False, "Starting tickets must be chosen first."
 
         player = self.get_current_player()
 
@@ -96,6 +130,9 @@ class TurnManager(Subject):
     def next_turn(self):
         if self.end_game_tracker.game_over():
             return "The game is over."
+
+        if not self.starting_tickets_chosen():
+            return "Starting tickets must be chosen first."
             
         if not self.turn_ended():
             return "You must complete an action before you end your turn."
@@ -165,6 +202,9 @@ class TurnManager(Subject):
         # Stop action if the game is already over.
         if self.end_game_tracker.game_over():
             return False, "The game is over."
+
+        if not self.starting_tickets_chosen():
+            return False, "Starting tickets must be chosen first."
         
         # Check if the player has taken actions that end their turn or prevent drawing cards.
         if self.actions_taken:
@@ -223,6 +263,9 @@ class TurnManager(Subject):
         # Stop action if the game is already over.
         if self.end_game_tracker.game_over():
             return False, "The game is over."
+
+        if not self.starting_tickets_chosen():
+            return False, "Starting tickets must be chosen first."
         
         # Enforce that drawing tickets must be the first action.
         if self.actions_taken:
