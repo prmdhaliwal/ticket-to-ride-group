@@ -1,64 +1,58 @@
-# FIT3077 Ticket to Ride Prototype
+# Ticket to Ride: London
 
-This repository contains the Sprint 2 Python/Tkinter prototype for Ticket to Ride: London.
+I built this desktop adaptation of Ticket to Ride: London with my team during FIT3077 at Monash University in 2026. We took the project from UML designs and individual prototypes to a shared Python application, using object-oriented models, controllers and a Tkinter interface.
 
-## Target Platform
+## What We Built
 
-The executable is built for Windows.
+- A local, turn-based game for two to four players.
+- A London board drawn from JSON map data, with routes, destination tickets and player scores.
+- Transport-card drawing, route claiming, starting-ticket selection and end-game scoring.
+- A themed Tkinter interface using `sv-ttk`.
 
-## Run the Executable
+## My Contribution
 
-1. Open the project folder.
-2. Go to:
+I contributed under `prmdhaliwal` and `pdha0007`.
 
-   ```powershell
-   Sprint 2\dist
-   ```
+- I developed route-claiming and scoring logic, including card payment, route availability, ticket completion, final scoring and tie-breaking.
+- I connected London map data to the board display and refined player-count validation and starting-ticket selection.
+- I added automated rule tests and worked on integration across the shared models and controllers.
+- I created a route-claiming prototype and contributed the turn-structure sequence diagram.
 
-3. Run:
+We kept each teammate's early prototype in `prototypes/`. The repository retains our individual contributions and shared development history.
 
-   ```powershell
-   .\TicketToRideLondon.exe
-   ```
+## Design
 
-The executable should run without an IDE. The required Python/Tkinter files are packaged into the executable.
+We separated the application into game models, controllers and Tkinter views. The board layout and route geometry live in JSON, while the game objects hold the state and rules.
 
-## Build the Executable
+- [`Sprint 2/models/`](Sprint%202/models): players, cards, routes, tickets, turns and scoring.
+- [`Sprint 2/controllers/`](Sprint%202/controllers): setup and game-action coordination.
+- [`Sprint 2/views/`](Sprint%202/views): setup window, board and player controls.
+- [`Sprint 2/assets/maps/`](Sprint%202/assets/maps): London map configuration.
 
-Use these steps if you need to rebuild the executable from the source code.
+Our early design artifacts include the [domain model](Sprint%201/Domain_Model.png), [setup sequence](Sprint%201/Game_Setup_Sequence_diagram.jpeg) and [turn-structure sequence](Sprint%201/final_turn_sequence_diagram.png). These show our initial design, before later implementation changes.
 
-1. Open PowerShell in the repository root.
-2. Move into the Sprint 2 folder:
+## Run Locally
 
-   ```powershell
-   cd "Sprint 2"
-   ```
-
-3. Build the executable:
-
-   ```powershell
-   python -m PyInstaller TicketToRideLondon.spec --noconfirm
-   ```
-
-4. After the build finishes, the executable will be created at:
-
-   ```powershell
-   Sprint 2\dist\TicketToRideLondon.exe
-   ```
-
-## If the Build Command Fails
-
-Make sure Python and PyInstaller are available on the build machine:
+I use Python with Tkinter and `sv-ttk`. From PowerShell on Windows:
 
 ```powershell
-python --version
-python -m PyInstaller --version
+git clone https://github.com/prmdhaliwal/ticket-to-ride-group.git
+cd ticket-to-ride-group
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -r requirements.txt
+./.venv/Scripts/python.exe "Sprint 2/main.py"
 ```
 
-If PyInstaller is missing, install it with:
+Enter the player names in the setup window to start a game. The source does not require an account, database or external service.
+
+## Tests
 
 ```powershell
-python -m pip install pyinstaller
+./.venv/Scripts/python.exe -B -m unittest discover -s "Sprint 2/tests" -v
 ```
 
-Then run the build command again from the `Sprint 2` folder.
+The current suite runs 14 tests: 12 pass and two error because they still reference the removed `MapDefinition.districts` and `add_district` API. They need to be brought into line with the final scoring model. The passing checks cover setup, card drawing, starting-ticket choices and controller delegation.
+
+## Individual Continuation
+
+I continued this shared codebase in a separate [individual final sprint](https://github.com/prmdhaliwal/ticket-to-ride-individual), refactoring the design and adding ferry routes, a visible ticket market and configurable maps.
